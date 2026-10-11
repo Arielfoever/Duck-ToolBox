@@ -198,6 +198,8 @@ jobs:
     name: Package module
     runs-on: ubuntu-latest
     needs: [line-limit, rust, android-backend, webui, contract, e2e, module]
+    permissions:
+      contents: write
     environment: ${{ github.event_name == 'push' && 'Telegram' || '' }}
     steps:
       - uses: actions/checkout@v7
@@ -227,6 +229,13 @@ jobs:
           mkdir -p dist
           (cd module && zip -qr "../dist/${name}.zip" .)
           echo "MODULE_PATH=dist/${name}.zip" >> "$GITHUB_ENV"
+      - name: Validate KernelSU Modules metadata and ZIP
+        id: validate-module
+        uses: KernelSU-Modules/tools/actions/module-release@ca1187c92135b3c31e48d37e008d61153120a08b
+        with:
+          zip: ${{ env.MODULE_PATH }}
+          prerelease: true
+          dry-run: true
       # The artifact is the module directory itself, so its nightly.link zip installs as is.
       - name: Upload canary module
         uses: actions/upload-artifact@v7
@@ -264,3 +273,25 @@ jobs:
             exit 1
           fi
           python3 .github/workflows/scripts/telegram.py validate-response --response-file "${response_file}"
+      - name: Publish nightly prerelease
+        if: >-
+          ${{ !cancelled() && steps.validate-module.outcome == 'success' &&
+              github.ref == 'refs/heads/main' &&
+              (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          timestamp="$(python3 -c 'from datetime import datetime, timezone; print(datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ"))')"
+          tag="nightly-${GITHUB_SHA:0:8}-${timestamp}"
+          notes_file="$(mktemp)"
+          {
+            printf 'Canary module built from commit %s.\n\n' "${GITHUB_SHA}"
+            printf 'CI run: %s/%s/actions/runs/%s\n' "${GITHUB_SERVER_URL}" "${GITHUB_REPOSITORY}" "${GITHUB_RUN_ID}"
+          } > "${notes_file}"
+          gh release create "${tag}" "${MODULE_PATH}" \
+            --target "${GITHUB_SHA}" \
+            --title "${tag}" \
+            --notes-file "${notes_file}" \
+            --prerelease \
+            --latest=false

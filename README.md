@@ -118,6 +118,22 @@ keep it.
 **Updates.** The stable channel follows `updateJson` in `module.prop`. The canary channel
 reads the newest CI artifact through nightly.link: CI uploads the module directory as
 `duck-toolbox-<version>-<commit count>-canary`, and the commit count is its `versionCode`.
+Each successful package on a `main` push or manual CI run also publishes the module ZIP
+as a GitHub prerelease. Tags use `nightly-<8-character commit hash>-<UTC timestamp>`
+(for example, `nightly-1234abcd-20261011T120000123456Z`). These releases do not replace
+the latest stable release; Telegram uploads continue on push builds.
+
+**KernelSU Modules repository.** The root `module.yaml` supplies the module listing
+metadata and selects `duck-toolbox-*.zip` release assets. Published ZIPs contain
+`module.prop` at their root; the current builds target Android API 26+ on arm64-v8a.
+The repository must enable release immutability and be registered through the
+[KernelSU Modules developer portal](https://developers.kernelsu.org/).
+Nightly prereleases are checked and recorded but are not displayed as stable versions.
+Every new version must have a `versionCode` greater than all previously accepted
+stable and prerelease versions; CI uses the commit count. Rebuilding the same commit
+creates another nightly release with the same `versionCode`, which is treated as the
+same prerelease version. A stable release needs a higher `versionCode`, or an accepted
+prerelease can be promoted by clearing its prerelease flag.
 
 ## JSON CLI
 
