@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2-stable - 2026-10-11
 
 ### Tricky Store manager
 - Complete port of Tricky Addon (Update Target List):
