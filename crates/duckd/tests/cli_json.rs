@@ -227,7 +227,10 @@ fn features_manifest_lists_every_registered_tool() {
         .iter()
         .map(|feature| feature["id"].as_str().unwrap())
         .collect();
-    assert_eq!(ids, ["rkp", "device-ids", "tricky-store", "system"]);
+    assert_eq!(
+        ids,
+        ["rkp", "rkp-device", "device-ids", "tricky-store", "system"]
+    );
     assert_eq!(payload["data"]["api"], 1);
 }
 

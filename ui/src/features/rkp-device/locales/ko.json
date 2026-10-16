@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "title": "기기 RKP 발급",
+    "description": "이 기기의 KeyMint TA로 P-256 키에 서명하고 Google에서 RKP 인증서 체인을 받아 keybox.xml로 내보냅니다.",
+    "warning": "일부 기기에서만 동작하며 RKP 인증서만 발급할 수 있습니다. 벤더 ABI를 통해 Qualcomm KeyMint 트러스트 앱을 직접 구동하므로 다른 펌웨어에는 같은 ABI가 없습니다. ABI가 맞지 않으면 트러스트 앱 프로세스가 종료될 수 있고, 개인 키가 기기에 남으므로 생성된 keybox도 이 기기에서만 쓸 수 있습니다. 계속하기 전에 사전 조건을 확인하세요."
+  },
+  "warning": {
+    "title": "계속하기 전에"
+  },
+  "limitations": {
+    "partial_device_support": "일부 기기에서만 동작합니다. Qualcomm KeyMint 펌웨어, root 권한, /dev/smcinvoke, libkeymasterdeviceutils.so가 모두 필요하지만 그래도 벤더 ABI는 다를 수 있습니다.",
+    "rkp_only": "RKP 인증서만 발급할 수 있습니다. 이 경로는 테스트 인증서나 소프트웨어 증명 키를 만들지 않으며, 실기기 없이 쓸 수 있는 keybox도 만들지 않습니다."
+  },
+  "status": {
+    "title": "사전 조건",
+    "description": "모두 로컬에서 확인하며 KeyMint나 서버로 아무것도 보내지 않습니다.",
+    "reload": "다시 확인",
+    "platform": "플랫폼",
+    "root": "Root 권한",
+    "vendor": "SoC 벤더",
+    "vendorOk": "벤더 지원",
+    "library": "Keymaster 라이브러리",
+    "device": "장치 노드",
+    "fingerprint": "빌드 지문",
+    "yes": "예",
+    "no": "아니요",
+    "unknown": "보고되지 않음",
+    "prerequisitesMet": "사전 조건 충족",
+    "prerequisitesMissing": "사전 조건 부족",
+    "blockers": "무엇이 빠졌나요"
+  },
+  "blockers": {
+    "android_arm64_required": "Android arm64에서 실행해야 합니다.",
+    "root_required": "KeyMint 트러스트 앱에 접근하려면 root 권한이 필요합니다.",
+    "keymint_library_missing": "/vendor/lib64에서 libkeymasterdeviceutils.so를 찾지 못했습니다.",
+    "smcinvoke_missing": "/dev/smcinvoke가 없습니다.",
+    "qualcomm_soc_required": "SoC 벤더가 Qualcomm이 아닙니다. 이 명령은 Qualcomm KeyMint에만 있습니다.",
+    "fingerprint_missing": "빌드 지문이 없어 서버가 챌린지를 묶을 수 없습니다."
+  },
+  "run": {
+    "provision": "RKP keybox 발급",
+    "done": "RKP keybox를 발급했습니다",
+    "blocked": "먼저 위의 부족한 사전 조건을 해결하세요.",
+    "title": "결과",
+    "mode": "모드",
+    "fingerprint": "지문",
+    "challenge": "챌린지",
+    "csr": "CSR",
+    "localVerify": "로컬 검증",
+    "valid": "유효",
+    "invalid": "무효",
+    "certificates": "인증서 수",
+    "deviceId": "기기 ID",
+    "keybox": "Keybox 파일",
+    "privateKey": "개인 키",
+    "certChain": "인증서 체인",
+    "install": "{target}에 설치",
+    "installed": "keybox를 {target}에 설치했습니다",
+    "backup": "이전 파일은 {path}에 백업했습니다.",
+    "onlyRkp": "RKP 인증서",
+    "onlyRkpHint": "이 체인은 keybox 파일의 키에 대해 Google이 서명한 것입니다. 개인 키 파일을 보관하세요. 없으면 keybox를 쓸 수 없습니다."
+  },
+  "confirm": {
+    "title": "KeyMint TA로 요청을 보낼까요?",
+    "body": "이 기기의 Qualcomm KeyMint 트러스트 앱에서 CSR_V2를 실행하고 결과를 Google에 제출합니다. 일부 기기에서만 동작하며 RKP 인증서만 발급할 수 있습니다. 요청은 읽기만 하고 기기 상태를 바꾸지 않으며 생성된 파일만 씁니다. 계속할까요?"
+  },
+  "errors": {
+    "acknowledgement_required": "제한 사항을 확인하지 않았습니다.",
+    "unsupported_device": "이 기기는 사전 조건을 충족하지 않습니다.",
+    "ta_timeout": "KeyMint 트러스트 앱이 제때 응답하지 않았습니다.",
+    "ta_transport_error": "KeyMint 트러스트 앱과 통신하지 못했습니다. 펌웨어 ABI가 호환되지 않을 수 있습니다.",
+    "ta_rejected": "KeyMint 트러스트 앱이 요청을 거부했습니다.",
+    "invalid_ta_response": "KeyMint 트러스트 앱이 잘못된 응답을 반환했습니다.",
+    "invalid_device_csr": "기기가 반환한 CSR이 검증에 실패했습니다.",
+    "certificate_key_mismatch": "발급된 인증서가 생성한 키와 일치하지 않습니다."
+  }
+}

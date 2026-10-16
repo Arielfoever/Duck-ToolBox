@@ -653,6 +653,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "duck-rkp-device"
+version = "0.1.2-stable"
+dependencies = [
+ "anyhow",
+ "base64ct",
+ "ciborium",
+ "clap",
+ "duck-core",
+ "duck-platform",
+ "duck-rkp",
+ "duck-tricky-store",
+ "getrandom 0.4.3",
+ "hex",
+ "libc",
+ "libloading",
+ "p256",
+ "pkcs8",
+ "rcgen",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "x509-cert",
+]
+
+[[package]]
 name = "duck-system"
 version = "0.1.2-stable"
 dependencies = [
@@ -703,6 +732,7 @@ dependencies = [
  "duck-device-ids",
  "duck-platform",
  "duck-rkp",
+ "duck-rkp-device",
  "duck-system",
  "duck-tricky-store",
  "serde",

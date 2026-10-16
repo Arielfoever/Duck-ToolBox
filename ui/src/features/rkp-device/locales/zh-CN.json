@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "title": "本机 RKP 签发",
+    "description": "用本机 KeyMint TA 为 P-256 密钥签名，向 Google 取得 RKP 证书链并导出 keybox.xml。",
+    "warning": "此功能仅在部分设备上可用，并且只能签发 RKP 证书。它通过厂商 ABI 直接驱动高通 KeyMint 可信应用，其他固件不具备该 ABI。ABI 不匹配可能导致可信应用进程崩溃；私钥只留在本机，因此生成的 keybox 也只能在本机使用。继续前请先阅读前置条件。"
+  },
+  "warning": {
+    "title": "继续之前"
+  },
+  "limitations": {
+    "partial_device_support": "仅在部分设备上可用。需要高通 KeyMint 固件、root 权限、/dev/smcinvoke 与 libkeymasterdeviceutils.so，即便如此厂商 ABI 仍可能不同。",
+    "rkp_only": "只能签发 RKP 证书。此路径不会产生测试证书或软件证明密钥，脱离真机也无法生成可用的 keybox。"
+  },
+  "status": {
+    "title": "前置条件",
+    "description": "全部在本地检查，不会向 KeyMint 或服务器发送任何内容。",
+    "reload": "重新检查",
+    "platform": "平台",
+    "root": "Root 权限",
+    "vendor": "SoC 厂商",
+    "vendorOk": "厂商受支持",
+    "library": "Keymaster 库",
+    "device": "设备节点",
+    "fingerprint": "构建指纹",
+    "yes": "是",
+    "no": "否",
+    "unknown": "未上报",
+    "prerequisitesMet": "前置条件已满足",
+    "prerequisitesMissing": "前置条件不满足",
+    "blockers": "缺少什么"
+  },
+  "blockers": {
+    "android_arm64_required": "必须在 Android arm64 上运行。",
+    "root_required": "访问 KeyMint 可信应用需要 root 权限。",
+    "keymint_library_missing": "在 /vendor/lib64 中未找到 libkeymasterdeviceutils.so。",
+    "smcinvoke_missing": "/dev/smcinvoke 不存在。",
+    "qualcomm_soc_required": "SoC 厂商不是高通；该命令只存在于高通 KeyMint 上。",
+    "fingerprint_missing": "缺少构建指纹，服务器无法绑定 challenge。"
+  },
+  "run": {
+    "provision": "签发 RKP keybox",
+    "done": "RKP keybox 已签发",
+    "blocked": "请先解决上面缺少的前置条件。",
+    "title": "结果",
+    "mode": "模式",
+    "fingerprint": "指纹",
+    "challenge": "Challenge",
+    "csr": "CSR",
+    "localVerify": "本地校验",
+    "valid": "有效",
+    "invalid": "无效",
+    "certificates": "证书数量",
+    "deviceId": "设备 ID",
+    "keybox": "Keybox 文件",
+    "privateKey": "私钥",
+    "certChain": "证书链",
+    "install": "安装到 {target}",
+    "installed": "Keybox 已安装到 {target}",
+    "backup": "原文件已备份到 {path}。",
+    "onlyRkp": "RKP 证书",
+    "onlyRkpHint": "该证书链由 Google 为 keybox 文件中的密钥签发。请保留私钥文件：没有它 keybox 无法使用。"
+  },
+  "confirm": {
+    "title": "向 KeyMint TA 发送请求？",
+    "body": "这会在本机高通 KeyMint 可信应用上执行 CSR_V2，并把结果提交给 Google。该功能仅在部分设备上可用，且只能签发 RKP 证书。请求只读取信息、不修改设备状态，只会写入生成的文件。是否继续？"
+  },
+  "errors": {
+    "acknowledgement_required": "尚未确认使用限制。",
+    "unsupported_device": "本机不满足前置条件。",
+    "ta_timeout": "KeyMint 可信应用未及时响应。",
+    "ta_transport_error": "与 KeyMint 可信应用通信失败，固件 ABI 可能不兼容。",
+    "ta_rejected": "KeyMint 可信应用拒绝了该请求。",
+    "invalid_ta_response": "KeyMint 可信应用返回了格式错误的响应。",
+    "invalid_device_csr": "设备返回的 CSR 未通过校验。",
+    "certificate_key_mismatch": "签发的证书与生成的密钥不匹配。"
+  }
+}

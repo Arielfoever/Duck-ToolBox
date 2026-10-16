@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "title": "Device RKP Issuer",
+    "description": "Sign a P-256 key with this device's KeyMint TA and get an RKP certificate chain from Google, exported as keybox.xml.",
+    "warning": "This only works on some devices, and it only issues RKP certificates. It drives the Qualcomm KeyMint trusted app directly through a vendor ABI that other firmware does not share. A wrong ABI can crash the trusted app process, and because the private key stays on this device the resulting keybox is only usable on this device. Read the prerequisites before continuing."
+  },
+  "warning": {
+    "title": "Before you continue"
+  },
+  "limitations": {
+    "partial_device_support": "Only some devices work. Qualcomm KeyMint firmware, root access, /dev/smcinvoke and libkeymasterdeviceutils.so are all required, but even then the vendor ABI may differ.",
+    "rkp_only": "Only RKP certificates can be issued. This path never produces test or software attestation keys, and it cannot be pointed at a keybox without a real device."
+  },
+  "status": {
+    "title": "Prerequisites",
+    "description": "Checked locally without sending anything to KeyMint or to a server.",
+    "reload": "Check again",
+    "platform": "Platform",
+    "root": "Root access",
+    "vendor": "SoC vendor",
+    "vendorOk": "Vendor supported",
+    "library": "Keymaster library",
+    "device": "Device node",
+    "fingerprint": "Build fingerprint",
+    "yes": "Yes",
+    "no": "No",
+    "unknown": "Not reported",
+    "prerequisitesMet": "Prerequisites met",
+    "prerequisitesMissing": "Prerequisites missing",
+    "blockers": "What is missing"
+  },
+  "blockers": {
+    "android_arm64_required": "This build must run on Android arm64.",
+    "root_required": "Root access is required to reach the KeyMint trusted app.",
+    "keymint_library_missing": "libkeymasterdeviceutils.so was not found in /vendor/lib64.",
+    "smcinvoke_missing": "/dev/smcinvoke does not exist.",
+    "qualcomm_soc_required": "The SoC vendor is not Qualcomm; this command only exists on Qualcomm KeyMint.",
+    "fingerprint_missing": "The build fingerprint is missing, so the server cannot bind a challenge."
+  },
+  "run": {
+    "provision": "Issue RKP keybox",
+    "done": "RKP keybox issued",
+    "blocked": "Resolve the missing prerequisites above before issuing.",
+    "title": "Result",
+    "mode": "Mode",
+    "fingerprint": "Fingerprint",
+    "challenge": "Challenge",
+    "csr": "CSR",
+    "localVerify": "Local verification",
+    "valid": "Valid",
+    "invalid": "Invalid",
+    "certificates": "Certificates",
+    "deviceId": "Device ID",
+    "keybox": "Keybox file",
+    "privateKey": "Private key",
+    "certChain": "Certificate chain",
+    "install": "Install to {target}",
+    "installed": "Keybox installed to {target}",
+    "backup": "The previous file was backed up to {path}.",
+    "onlyRkp": "RKP certificate",
+    "onlyRkpHint": "The chain was signed by Google for the key in the keybox file. Keep the private key file: without it the keybox is unusable."
+  },
+  "confirm": {
+    "title": "Send a request to the KeyMint TA?",
+    "body": "This runs CSR_V2 on the device's Qualcomm KeyMint trusted app and submits the result to Google. It only works on some devices and only RKP certificates can be issued. The request reads nothing and changes no device state; only the generated files are written. Continue?"
+  },
+  "errors": {
+    "acknowledgement_required": "The limitations were not acknowledged.",
+    "unsupported_device": "This device does not meet the prerequisites.",
+    "ta_timeout": "The KeyMint trusted app did not answer in time.",
+    "ta_transport_error": "Talking to the KeyMint trusted app failed; the firmware ABI may be incompatible.",
+    "ta_rejected": "The KeyMint trusted app rejected the request.",
+    "invalid_ta_response": "The KeyMint trusted app returned a malformed response.",
+    "invalid_device_csr": "The CSR returned by the device failed validation.",
+    "certificate_key_mismatch": "The issued certificate does not match the generated key."
+  }
+}

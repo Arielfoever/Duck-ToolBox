@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Device RKP Issuer
+- New tool: signs a P-256 key we generated with this device's Qualcomm KeyMint TA
+  (`CSR_V2`, command `0x3122` over `libkeymasterdeviceutils.so`) and submits the resulting
+  `AuthenticatedRequest` to Google's RKP server, then exports `keybox.xml` plus its private
+  key. Nothing is read out of TEE memory and no device state is changed.
+- Warns twice before it can run, and the backend refuses a run without
+  `--acknowledge-limitations`: only some devices work, and only RKP certificates can be
+  issued.
+- Checks Android arm64, root, `/dev/smcinvoke`, `libkeymasterdeviceutils.so` and a Qualcomm
+  SoC first, and reports exactly which prerequisite is missing.
+- Validates the device's CSR (DICE chain, signature, challenge, `keysToSign`) and binds the
+  issued certificate chain to the generated key before writing anything. The chain must also
+  be one leaf-to-root path with no certificate left off it, so a keybox can never ship a
+  chain the device would refuse to verify.
+
 ## 0.1.2-stable - 2026-10-11
 
 ### Tricky Store manager

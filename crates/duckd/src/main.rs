@@ -13,6 +13,8 @@ use duck_core::{
 static FEATURES: &[&dyn Feature] = &[
     #[cfg(feature = "rkp")]
     &duck_rkp::FEATURE,
+    #[cfg(feature = "rkp-device")]
+    &duck_rkp_device::FEATURE,
     #[cfg(feature = "device-ids")]
     &duck_device_ids::FEATURE,
     #[cfg(feature = "tricky-store")]

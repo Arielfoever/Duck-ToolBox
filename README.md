@@ -34,6 +34,15 @@ changed, removed or added on its own.
   - Verifies CSRs offline and exports `keybox.xml`, which the Tricky Store manager can
     install directly.
   - Device values are read from AOSP build properties.
+- **Device RKP Issuer**: the same keybox export, but signed by the device itself instead of
+  a seed you hold.
+  - Asks this device's Qualcomm KeyMint TA for a `CSR_V2` over a P-256 key we generated,
+    submits the result to Google's RKP server and exports `keybox.xml` with the private key.
+  - Checks its prerequisites (Android arm64, root, `/dev/smcinvoke`,
+    `libkeymasterdeviceutils.so`, Qualcomm SoC) before it sends anything.
+  - Only works on some devices, and only RKP certificates can be issued. Both are stated in
+    a dialog before the tool opens and again before a request is sent; the backend refuses
+    to run without an explicit acknowledgement.
 - **Device ID Provisioner**: writes attestation device IDs into the Qualcomm Keymaster
   trusted app through `libQSEEComAPI.so`, with a dry-run mode.
 - **Module & updates**: version and device summary, stable and canary updates with
@@ -51,8 +60,9 @@ crates/
   duck-core/          Shared runtime: paths, JSON envelope, Feature trait, command log,
                       and a Sysroot so every feature is testable off-device.
   duck-platform/      Device adapters: props/resetprop, pm, modules, root managers, HTTP.
-  duck-rkp/           RKP workbench.            duck-device-ids/  Device ID provisioning.
-  duck-tricky-store/  Keystore module manager.  duck-system/      Module lifecycle, updates.
+  duck-rkp/           RKP workbench.            duck-rkp-device/  Device RKP issuer.
+  duck-device-ids/    Device ID provisioning.   duck-tricky-store/ Keystore module manager.
+  duck-system/        Module lifecycle, updates.
   duckd/              The binary: builds its CLI from the compiled-in features.
 xtask/                Repository checks (`cargo xtask line-limit`).
 ui/src/
@@ -67,8 +77,10 @@ module/               Module payload: scripts, then the built WebUI and backend 
 What keeps it modular and resistant to breaking changes:
 
 - **Features never import each other.** Backend feature crates depend only on `duck-core`
-  and `duck-platform`. WebUI features depend only on `core/`; ESLint (`eslint-plugin-boundaries`)
-  rejects anything else, and only `core/bridge` may touch the KernelSU JavaScript API.
+  and `duck-platform`, except the Device RKP Issuer, which reuses the RKP workbench's public
+  CSR primitives and clients instead of copying them. WebUI features depend only on `core/`;
+  ESLint (`eslint-plugin-boundaries`) rejects anything else, and only `core/bridge` may touch
+  the KernelSU JavaScript API.
 - **Extension points instead of imports.** A feature contributes to others through
   `contributes`: `keyboxTargets` (RKP installs its keybox through the Tricky Store manager),
   `settingsSections` and `homeWidgets`.

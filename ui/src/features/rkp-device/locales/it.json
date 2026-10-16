@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "title": "Emittente RKP del dispositivo",
+    "description": "Firma una chiave P-256 con il KeyMint TA di questo dispositivo, ottiene da Google la catena di certificati RKP e la esporta come keybox.xml.",
+    "warning": "Funziona solo su alcuni dispositivi e rilascia solo certificati RKP. Pilota direttamente l'app attendibile KeyMint di Qualcomm tramite un'ABI del fornitore che altri firmware non hanno. Un'ABI sbagliata può far terminare il processo dell'app attendibile e, poiché la chiave privata resta sul dispositivo, il keybox ottenuto è utilizzabile solo lì. Leggi i prerequisiti prima di continuare."
+  },
+  "warning": {
+    "title": "Prima di continuare"
+  },
+  "limitations": {
+    "partial_device_support": "Funziona solo su alcuni dispositivi. Servono firmware KeyMint Qualcomm, accesso root, /dev/smcinvoke e libkeymasterdeviceutils.so, e anche così l'ABI del fornitore può essere diversa.",
+    "rkp_only": "Si possono rilasciare solo certificati RKP. Questa via non produce mai chiavi di attestazione di test o software e non può generare un keybox senza un dispositivo reale."
+  },
+  "status": {
+    "title": "Prerequisiti",
+    "description": "Verificati in locale senza inviare nulla a KeyMint o a un server.",
+    "reload": "Controlla di nuovo",
+    "platform": "Piattaforma",
+    "root": "Accesso root",
+    "vendor": "Produttore SoC",
+    "vendorOk": "Produttore supportato",
+    "library": "Libreria Keymaster",
+    "device": "Nodo del dispositivo",
+    "fingerprint": "Impronta di build",
+    "yes": "Sì",
+    "no": "No",
+    "unknown": "Non segnalato",
+    "prerequisitesMet": "Prerequisiti soddisfatti",
+    "prerequisitesMissing": "Prerequisiti mancanti",
+    "blockers": "Cosa manca"
+  },
+  "blockers": {
+    "android_arm64_required": "Questa build deve girare su Android arm64.",
+    "root_required": "Serve l'accesso root per raggiungere l'app attendibile KeyMint.",
+    "keymint_library_missing": "libkeymasterdeviceutils.so non è stato trovato in /vendor/lib64.",
+    "smcinvoke_missing": "/dev/smcinvoke non esiste.",
+    "qualcomm_soc_required": "Il produttore del SoC non è Qualcomm; questo comando esiste solo su KeyMint Qualcomm.",
+    "fingerprint_missing": "Manca l'impronta di build, quindi il server non può associare un challenge."
+  },
+  "run": {
+    "provision": "Rilascia keybox RKP",
+    "done": "Keybox RKP rilasciato",
+    "blocked": "Risolvi prima i prerequisiti mancanti qui sopra.",
+    "title": "Risultato",
+    "mode": "Modalità",
+    "fingerprint": "Impronta",
+    "challenge": "Challenge",
+    "csr": "CSR",
+    "localVerify": "Verifica locale",
+    "valid": "Valido",
+    "invalid": "Non valido",
+    "certificates": "Certificati",
+    "deviceId": "ID dispositivo",
+    "keybox": "File keybox",
+    "privateKey": "Chiave privata",
+    "certChain": "Catena di certificati",
+    "install": "Installa in {target}",
+    "installed": "Keybox installato in {target}",
+    "backup": "Il file precedente è stato salvato in {path}.",
+    "onlyRkp": "Certificato RKP",
+    "onlyRkpHint": "Questa catena è stata firmata da Google per la chiave nel file keybox. Conserva il file della chiave privata: senza di esso il keybox è inutilizzabile."
+  },
+  "confirm": {
+    "title": "Inviare una richiesta al KeyMint TA?",
+    "body": "Questo esegue CSR_V2 sull'app attendibile KeyMint Qualcomm del dispositivo e invia il risultato a Google. Funziona solo su alcuni dispositivi e rilascia solo certificati RKP. La richiesta non legge nulla e non cambia lo stato del dispositivo; scrive solo i file generati. Continuare?"
+  },
+  "errors": {
+    "acknowledgement_required": "Le limitazioni non sono state accettate.",
+    "unsupported_device": "Questo dispositivo non soddisfa i prerequisiti.",
+    "ta_timeout": "L'app attendibile KeyMint non ha risposto in tempo.",
+    "ta_transport_error": "La comunicazione con l'app attendibile KeyMint è fallita; l'ABI del firmware potrebbe essere incompatibile.",
+    "ta_rejected": "L'app attendibile KeyMint ha rifiutato la richiesta.",
+    "invalid_ta_response": "L'app attendibile KeyMint ha restituito una risposta malformata.",
+    "invalid_device_csr": "Il CSR restituito dal dispositivo non ha superato la validazione.",
+    "certificate_key_mismatch": "Il certificato rilasciato non corrisponde alla chiave generata."
+  }
+}

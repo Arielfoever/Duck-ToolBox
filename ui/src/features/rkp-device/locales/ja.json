@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "title": "デバイス RKP 発行",
+    "description": "このデバイスの KeyMint TA で P-256 鍵に署名し、Google から RKP 証明書チェーンを取得して keybox.xml として書き出します。",
+    "warning": "対応するデバイスは一部だけで、発行できるのは RKP 証明書のみです。ベンダー ABI を通じて Qualcomm KeyMint トラステッドアプリを直接操作するため、他のファームウェアには同じ ABI がありません。ABI が一致しないとトラステッドアプリのプロセスが落ちる可能性があります。また秘密鍵は端末内に残るため、生成した keybox はこの端末でしか使えません。続行する前に前提条件を確認してください。"
+  },
+  "warning": {
+    "title": "続行する前に"
+  },
+  "limitations": {
+    "partial_device_support": "対応するのは一部のデバイスだけです。Qualcomm KeyMint ファームウェア、root 権限、/dev/smcinvoke、libkeymasterdeviceutils.so が必要ですが、それでもベンダー ABI が異なる場合があります。",
+    "rkp_only": "発行できるのは RKP 証明書のみです。この経路はテスト用証明書やソフトウェア証明鍵を生成せず、実機なしで使える keybox も作れません。"
+  },
+  "status": {
+    "title": "前提条件",
+    "description": "すべてローカルで確認します。KeyMint やサーバーには何も送信しません。",
+    "reload": "再確認",
+    "platform": "プラットフォーム",
+    "root": "root 権限",
+    "vendor": "SoC ベンダー",
+    "vendorOk": "ベンダー対応",
+    "library": "Keymaster ライブラリ",
+    "device": "デバイスノード",
+    "fingerprint": "ビルド指紋",
+    "yes": "はい",
+    "no": "いいえ",
+    "unknown": "未報告",
+    "prerequisitesMet": "前提条件を満たしています",
+    "prerequisitesMissing": "前提条件が不足しています",
+    "blockers": "不足しているもの"
+  },
+  "blockers": {
+    "android_arm64_required": "Android arm64 上で実行する必要があります。",
+    "root_required": "KeyMint トラステッドアプリに到達するには root 権限が必要です。",
+    "keymint_library_missing": "/vendor/lib64 に libkeymasterdeviceutils.so がありません。",
+    "smcinvoke_missing": "/dev/smcinvoke が存在しません。",
+    "qualcomm_soc_required": "SoC ベンダーが Qualcomm ではありません。このコマンドは Qualcomm KeyMint にのみ存在します。",
+    "fingerprint_missing": "ビルド指紋がないため、サーバーがチャレンジを結び付けられません。"
+  },
+  "run": {
+    "provision": "RKP keybox を発行",
+    "done": "RKP keybox を発行しました",
+    "blocked": "先に上記の不足している前提条件を解決してください。",
+    "title": "結果",
+    "mode": "モード",
+    "fingerprint": "指紋",
+    "challenge": "チャレンジ",
+    "csr": "CSR",
+    "localVerify": "ローカル検証",
+    "valid": "有効",
+    "invalid": "無効",
+    "certificates": "証明書数",
+    "deviceId": "デバイス ID",
+    "keybox": "Keybox ファイル",
+    "privateKey": "秘密鍵",
+    "certChain": "証明書チェーン",
+    "install": "{target} にインストール",
+    "installed": "keybox を {target} にインストールしました",
+    "backup": "以前のファイルは {path} にバックアップされました。",
+    "onlyRkp": "RKP 証明書",
+    "onlyRkpHint": "このチェーンは keybox ファイル内の鍵に対して Google が署名したものです。秘密鍵ファイルを保管してください。ないと keybox は使えません。"
+  },
+  "confirm": {
+    "title": "KeyMint TA にリクエストを送信しますか？",
+    "body": "この端末の Qualcomm KeyMint トラステッドアプリで CSR_V2 を実行し、結果を Google に送信します。対応デバイスは一部だけで、発行できるのは RKP 証明書のみです。リクエストは読み取りのみでデバイス状態を変更せず、生成されたファイルだけを書き込みます。続行しますか？"
+  },
+  "errors": {
+    "acknowledgement_required": "制限事項が確認されていません。",
+    "unsupported_device": "このデバイスは前提条件を満たしていません。",
+    "ta_timeout": "KeyMint トラステッドアプリが時間内に応答しませんでした。",
+    "ta_transport_error": "KeyMint トラステッドアプリとの通信に失敗しました。ファームウェア ABI が非互換の可能性があります。",
+    "ta_rejected": "KeyMint トラステッドアプリがリクエストを拒否しました。",
+    "invalid_ta_response": "KeyMint トラステッドアプリが不正な応答を返しました。",
+    "invalid_device_csr": "デバイスが返した CSR が検証に失敗しました。",
+    "certificate_key_mismatch": "発行された証明書が生成した鍵と一致しません。"
+  }
+}

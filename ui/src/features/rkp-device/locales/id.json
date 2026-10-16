@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "title": "Penerbit RKP Perangkat",
+    "description": "Tandatangani kunci P-256 dengan KeyMint TA perangkat ini, ambil rantai sertifikat RKP dari Google, lalu ekspor sebagai keybox.xml.",
+    "warning": "Ini hanya berfungsi di sebagian perangkat dan hanya menerbitkan sertifikat RKP. Fitur ini mengendalikan aplikasi tepercaya KeyMint Qualcomm secara langsung lewat ABI vendor yang tidak dimiliki firmware lain. ABI yang salah dapat membuat proses aplikasi tepercaya berhenti, dan karena kunci privat tetap di perangkat, keybox yang dihasilkan hanya bisa dipakai di perangkat itu. Baca prasyaratnya sebelum melanjutkan."
+  },
+  "warning": {
+    "title": "Sebelum melanjutkan"
+  },
+  "limitations": {
+    "partial_device_support": "Hanya berfungsi di sebagian perangkat. Firmware Qualcomm KeyMint, akses root, /dev/smcinvoke, dan libkeymasterdeviceutils.so semuanya diperlukan, namun ABI vendor tetap bisa berbeda.",
+    "rkp_only": "Hanya sertifikat RKP yang dapat diterbitkan. Jalur ini tidak pernah menghasilkan kunci atestasi uji atau perangkat lunak, dan tidak bisa membuat keybox tanpa perangkat asli."
+  },
+  "status": {
+    "title": "Prasyarat",
+    "description": "Diperiksa secara lokal tanpa mengirim apa pun ke KeyMint atau server.",
+    "reload": "Periksa lagi",
+    "platform": "Platform",
+    "root": "Akses root",
+    "vendor": "Vendor SoC",
+    "vendorOk": "Vendor didukung",
+    "library": "Pustaka Keymaster",
+    "device": "Node perangkat",
+    "fingerprint": "Sidik jari build",
+    "yes": "Ya",
+    "no": "Tidak",
+    "unknown": "Tidak dilaporkan",
+    "prerequisitesMet": "Prasyarat terpenuhi",
+    "prerequisitesMissing": "Prasyarat kurang",
+    "blockers": "Apa yang kurang"
+  },
+  "blockers": {
+    "android_arm64_required": "Build ini harus berjalan di Android arm64.",
+    "root_required": "Akses root diperlukan untuk mencapai aplikasi tepercaya KeyMint.",
+    "keymint_library_missing": "libkeymasterdeviceutils.so tidak ditemukan di /vendor/lib64.",
+    "smcinvoke_missing": "/dev/smcinvoke tidak ada.",
+    "qualcomm_soc_required": "Vendor SoC bukan Qualcomm; perintah ini hanya ada di Qualcomm KeyMint.",
+    "fingerprint_missing": "Sidik jari build tidak ada, sehingga server tidak dapat mengikat challenge."
+  },
+  "run": {
+    "provision": "Terbitkan keybox RKP",
+    "done": "Keybox RKP diterbitkan",
+    "blocked": "Selesaikan dulu prasyarat yang kurang di atas.",
+    "title": "Hasil",
+    "mode": "Mode",
+    "fingerprint": "Sidik jari",
+    "challenge": "Challenge",
+    "csr": "CSR",
+    "localVerify": "Verifikasi lokal",
+    "valid": "Valid",
+    "invalid": "Tidak valid",
+    "certificates": "Sertifikat",
+    "deviceId": "ID perangkat",
+    "keybox": "Berkas keybox",
+    "privateKey": "Kunci privat",
+    "certChain": "Rantai sertifikat",
+    "install": "Pasang ke {target}",
+    "installed": "Keybox dipasang ke {target}",
+    "backup": "Berkas sebelumnya dicadangkan ke {path}.",
+    "onlyRkp": "Sertifikat RKP",
+    "onlyRkpHint": "Rantai ini ditandatangani Google untuk kunci di berkas keybox. Simpan berkas kunci privat: tanpa itu keybox tidak berguna."
+  },
+  "confirm": {
+    "title": "Kirim permintaan ke KeyMint TA?",
+    "body": "Ini menjalankan CSR_V2 pada aplikasi tepercaya Qualcomm KeyMint di perangkat lalu mengirim hasilnya ke Google. Hanya berfungsi di sebagian perangkat dan hanya menerbitkan sertifikat RKP. Permintaan tidak membaca apa pun dan tidak mengubah status perangkat; hanya berkas hasil yang ditulis. Lanjutkan?"
+  },
+  "errors": {
+    "acknowledgement_required": "Batasan belum disetujui.",
+    "unsupported_device": "Perangkat ini tidak memenuhi prasyarat.",
+    "ta_timeout": "Aplikasi tepercaya KeyMint tidak menjawab tepat waktu.",
+    "ta_transport_error": "Komunikasi dengan aplikasi tepercaya KeyMint gagal; ABI firmware mungkin tidak kompatibel.",
+    "ta_rejected": "Aplikasi tepercaya KeyMint menolak permintaan.",
+    "invalid_ta_response": "Aplikasi tepercaya KeyMint mengembalikan respons cacat.",
+    "invalid_device_csr": "CSR dari perangkat gagal diverifikasi.",
+    "certificate_key_mismatch": "Sertifikat yang diterbitkan tidak cocok dengan kunci yang dibuat."
+  }
+}
