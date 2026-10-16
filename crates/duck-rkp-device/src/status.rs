@@ -79,7 +79,10 @@ pub(crate) fn detect(ctx: &Context) -> DeviceStatus {
 /// Only Qualcomm's KeyMint TA implements the command this feature drives. An unreported
 /// vendor is not blocked, because some builds simply omit the property.
 fn is_supported_vendor(manufacturer: &str) -> bool {
-    manufacturer.trim().is_empty() || manufacturer.to_ascii_lowercase().contains("qualcomm")
+    let manufacturer = manufacturer.trim();
+    manufacturer.is_empty()
+        || manufacturer.eq_ignore_ascii_case("qti")
+        || manufacturer.to_ascii_lowercase().contains("qualcomm")
 }
 
 #[cfg(test)]
@@ -99,5 +102,14 @@ mod tests {
         assert!(is_supported_vendor("QUALCOMM"));
         assert!(!is_supported_vendor("MediaTek"));
         assert!(!is_supported_vendor("Google"));
+        assert!(!is_supported_vendor("not-qti"));
+        assert!(!is_supported_vendor("qti-other"));
+    }
+
+    #[test]
+    fn qti_alias_is_supported() {
+        for manufacturer in ["QTI", "qti", "QtI", " \tQTI\n"] {
+            assert!(is_supported_vendor(manufacturer), "{manufacturer:?}");
+        }
     }
 }
