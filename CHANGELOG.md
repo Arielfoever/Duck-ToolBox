@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3-stable - 2026-10-17
 
 ### Device RKP Issuer
 - New tool: signs a P-256 key we generated with this device's Qualcomm KeyMint TA
