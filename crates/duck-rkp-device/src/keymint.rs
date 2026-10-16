@@ -33,7 +33,14 @@ impl Session {
     fn open() -> Result<Self> {
         // SAFETY: only this adapter resolves the fixed vendor ABI. It is called only
         // on Android arm64 and in an isolated worker; unsupported firmware may fail.
-        let library = unsafe { Library::new(LIBRARY_PATH) }.context("load KeymasterUtils")?;
+        let library: Library = unsafe {
+            libloading::os::unix::Library::open(
+                Some(LIBRARY_PATH),
+                libc::RTLD_NOW | libc::RTLD_LOCAL,
+            )
+        }
+        .context("load KeymasterUtils")?
+        .into();
         let constructor = *unsafe {
             library.get::<Constructor>(
                 b"_ZN14keymasterutils14KeymasterUtilsC1E26keymaster_security_level_t\0",

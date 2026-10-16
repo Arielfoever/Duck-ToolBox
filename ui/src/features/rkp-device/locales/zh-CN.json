@@ -2,14 +2,14 @@
   "meta": {
     "title": "本机 RKP 签发",
     "description": "用本机 KeyMint TA 为 P-256 密钥签名，向 Google 取得 RKP 证书链并导出 keybox.xml。",
-    "warning": "此功能仅在部分设备上可用，并且只能签发 RKP 证书。它通过厂商 ABI 直接驱动高通 KeyMint 可信应用，其他固件不具备该 ABI。ABI 不匹配可能导致可信应用进程崩溃；私钥只留在本机，因此生成的 keybox 也只能在本机使用。继续前请先阅读前置条件。"
+    "warning": "此功能仅在部分设备上可用，并且只能签发 RKP 证书。它通过高通 KeyMint 的厂商私有 ABI 调用，ABI 可能随固件变化。不兼容的 ABI 可能导致工作进程或可信应用崩溃。导出的 keybox 包含软件生成的私钥，请妥善保管。继续前请先阅读前置条件。"
   },
   "warning": {
     "title": "继续之前"
   },
   "limitations": {
     "partial_device_support": "仅在部分设备上可用。需要高通 KeyMint 固件、root 权限、/dev/smcinvoke 与 libkeymasterdeviceutils.so，即便如此厂商 ABI 仍可能不同。",
-    "rkp_only": "只能签发 RKP 证书。此路径不会产生测试证书或软件证明密钥，脱离真机也无法生成可用的 keybox。"
+    "rkp_only": "只能签发 RKP 证书。必须通过兼容的真机取得签名 CSR。导出的私钥由软件生成，不会从 TEE 中提取私钥。"
   },
   "status": {
     "title": "前置条件",
@@ -62,7 +62,7 @@
   },
   "confirm": {
     "title": "向 KeyMint TA 发送请求？",
-    "body": "这会在本机高通 KeyMint 可信应用上执行 CSR_V2，并把结果提交给 Google。该功能仅在部分设备上可用，且只能签发 RKP 证书。请求只读取信息、不修改设备状态，只会写入生成的文件。是否继续？"
+    "body": "这会在本机高通 KeyMint 可信应用上执行 CSR_V2，并把结果提交给 Google。该功能仅在部分设备上可用，且只能签发 RKP 证书。生成的文件包含私钥，请妥善保管。是否继续？"
   },
   "errors": {
     "acknowledgement_required": "尚未确认使用限制。",
@@ -72,6 +72,12 @@
     "ta_rejected": "KeyMint 可信应用拒绝了该请求。",
     "invalid_ta_response": "KeyMint 可信应用返回了格式错误的响应。",
     "invalid_device_csr": "设备返回的 CSR 未通过校验。",
-    "certificate_key_mismatch": "签发的证书与生成的密钥不匹配。"
+    "certificate_key_mismatch": "签发的证书与生成的密钥不匹配。",
+    "invalid_server_url": "证书服务地址无效。",
+    "unsupported_eek_curve": "服务器返回了不支持的 EEK 曲线。",
+    "invalid_rkp_response": "RKP 服务器返回的数据无效。",
+    "device_not_registered": "RKP 服务器无法识别此设备。",
+    "rkp_client_error": "RKP 服务器拒绝了请求。",
+    "rkp_server_error": "RKP 服务器出错。"
   }
 }

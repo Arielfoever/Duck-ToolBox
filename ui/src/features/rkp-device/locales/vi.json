@@ -2,14 +2,14 @@
   "meta": {
     "title": "Bộ phát RKP trên thiết bị",
     "description": "Ký một khoá P-256 bằng KeyMint TA của thiết bị này, lấy chuỗi chứng chỉ RKP từ Google và xuất thành keybox.xml.",
-    "warning": "Tính năng chỉ chạy trên một số thiết bị và chỉ phát chứng chỉ RKP. Nó điều khiển trực tiếp ứng dụng tin cậy KeyMint của Qualcomm qua ABI của nhà sản xuất mà firmware khác không có. ABI không khớp có thể làm tiến trình ứng dụng tin cậy thoát, và vì khoá riêng tư ở lại thiết bị nên keybox tạo ra chỉ dùng được trên máy đó. Hãy đọc điều kiện tiên quyết trước khi tiếp tục."
+    "warning": "Tính năng chỉ hoạt động trên một số thiết bị và chỉ cấp chứng chỉ RKP. Tính năng dùng ABI riêng của Qualcomm KeyMint, có thể khác nhau giữa các bản firmware. ABI không tương thích có thể làm tiến trình thực thi hoặc ứng dụng tin cậy bị lỗi. Keybox xuất ra chứa khoá riêng được tạo bằng phần mềm; hãy bảo quản các tệp an toàn. Đọc điều kiện tiên quyết trước khi tiếp tục."
   },
   "warning": {
     "title": "Trước khi tiếp tục"
   },
   "limitations": {
     "partial_device_support": "Chỉ chạy trên một số thiết bị. Cần firmware KeyMint Qualcomm, quyền root, /dev/smcinvoke và libkeymasterdeviceutils.so, nhưng ngay cả vậy ABI của nhà sản xuất vẫn có thể khác.",
-    "rkp_only": "Chỉ có thể phát chứng chỉ RKP. Đường đi này không tạo khoá chứng thực thử nghiệm hay phần mềm, và không thể tạo keybox nếu không có thiết bị thật."
+    "rkp_only": "Chỉ có thể cấp chứng chỉ RKP. Cần thiết bị tương thích để lấy CSR đã ký. Khoá riêng xuất ra được tạo bằng phần mềm; không trích xuất khoá riêng từ TEE."
   },
   "status": {
     "title": "Điều kiện tiên quyết",
@@ -62,7 +62,7 @@
   },
   "confirm": {
     "title": "Gửi yêu cầu tới KeyMint TA?",
-    "body": "Thao tác này chạy CSR_V2 trên ứng dụng tin cậy KeyMint Qualcomm của thiết bị rồi gửi kết quả tới Google. Chỉ chạy trên một số thiết bị và chỉ phát chứng chỉ RKP. Yêu cầu không đọc gì và không đổi trạng thái thiết bị; chỉ ghi các tệp được tạo. Tiếp tục?"
+    "body": "Thao tác này chạy CSR_V2 trên ứng dụng tin cậy KeyMint Qualcomm của thiết bị rồi gửi kết quả tới Google. Chỉ chạy trên một số thiết bị và chỉ phát chứng chỉ RKP. Các tệp xuất ra chứa khoá riêng; hãy bảo quản an toàn. Tiếp tục?"
   },
   "errors": {
     "acknowledgement_required": "Chưa xác nhận các giới hạn.",
@@ -72,6 +72,12 @@
     "ta_rejected": "Ứng dụng tin cậy KeyMint đã từ chối yêu cầu.",
     "invalid_ta_response": "Ứng dụng tin cậy KeyMint trả về phản hồi sai định dạng.",
     "invalid_device_csr": "CSR do thiết bị trả về không vượt qua kiểm tra.",
-    "certificate_key_mismatch": "Chứng chỉ được phát không khớp với khoá đã tạo."
+    "certificate_key_mismatch": "Chứng chỉ được phát không khớp với khoá đã tạo.",
+    "invalid_server_url": "URL máy chủ cấp phát không hợp lệ.",
+    "unsupported_eek_curve": "Máy chủ trả về đường cong EEK không được hỗ trợ.",
+    "invalid_rkp_response": "Phản hồi của máy chủ RKP không hợp lệ.",
+    "device_not_registered": "Máy chủ RKP không nhận ra thiết bị này.",
+    "rkp_client_error": "Máy chủ RKP đã từ chối yêu cầu.",
+    "rkp_server_error": "Máy chủ RKP gặp lỗi."
   }
 }

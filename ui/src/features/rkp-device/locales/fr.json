@@ -2,14 +2,14 @@
   "meta": {
     "title": "Émetteur RKP de l'appareil",
     "description": "Signe une clé P-256 avec le KeyMint TA de cet appareil, obtient la chaîne de certificats RKP auprès de Google et l'exporte en keybox.xml.",
-    "warning": "Cela ne fonctionne que sur certains appareils et n'émet que des certificats RKP. L'outil pilote directement l'application de confiance KeyMint de Qualcomm via une ABI constructeur que les autres firmwares ne partagent pas. Une ABI incorrecte peut faire planter le processus de l'application de confiance, et comme la clé privée reste sur l'appareil, le keybox obtenu n'y est utilisable que là. Lisez les prérequis avant de continuer."
+    "warning": "Cette fonction ne fonctionne que sur certains appareils et ne délivre que des certificats RKP. Elle utilise une ABI privée de Qualcomm KeyMint, qui peut varier selon le micrologiciel. Une ABI incompatible peut faire planter le processus de travail ou l’application de confiance. Le keybox exporté contient une clé privée générée par logiciel ; conservez ces fichiers en lieu sûr. Lisez les prérequis avant de continuer."
   },
   "warning": {
     "title": "Avant de continuer"
   },
   "limitations": {
     "partial_device_support": "Cela ne fonctionne que sur certains appareils. Le firmware KeyMint Qualcomm, l'accès root, /dev/smcinvoke et libkeymasterdeviceutils.so sont tous nécessaires, et malgré cela l'ABI constructeur peut différer.",
-    "rkp_only": "Seuls des certificats RKP peuvent être émis. Cette voie ne produit jamais de clés d'attestation de test ou logicielles, et ne peut pas viser un keybox sans appareil réel."
+    "rkp_only": "Seuls des certificats RKP peuvent être délivrés. Un appareil compatible est nécessaire pour obtenir le CSR signé. La clé privée exportée est générée par logiciel ; aucune clé privée n’est extraite du TEE."
   },
   "status": {
     "title": "Prérequis",
@@ -62,7 +62,7 @@
   },
   "confirm": {
     "title": "Envoyer une requête au KeyMint TA ?",
-    "body": "Cela exécute CSR_V2 sur l'application de confiance KeyMint Qualcomm de l'appareil et envoie le résultat à Google. Cela ne fonctionne que sur certains appareils et n'émet que des certificats RKP. La requête ne lit rien et ne modifie aucun état de l'appareil ; seuls les fichiers générés sont écrits. Continuer ?"
+    "body": "Cela exécute CSR_V2 sur l'application de confiance KeyMint Qualcomm de l'appareil et envoie le résultat à Google. Cela ne fonctionne que sur certains appareils et n'émet que des certificats RKP. Les fichiers exportés contiennent une clé privée ; conservez-les en lieu sûr. Continuer ?"
   },
   "errors": {
     "acknowledgement_required": "Les limitations n'ont pas été acceptées.",
@@ -72,6 +72,12 @@
     "ta_rejected": "L'application de confiance KeyMint a refusé la requête.",
     "invalid_ta_response": "L'application de confiance KeyMint a renvoyé une réponse mal formée.",
     "invalid_device_csr": "Le CSR renvoyé par l'appareil n'a pas passé la validation.",
-    "certificate_key_mismatch": "Le certificat émis ne correspond pas à la clé générée."
+    "certificate_key_mismatch": "Le certificat émis ne correspond pas à la clé générée.",
+    "invalid_server_url": "L’URL du serveur de provisionnement n’est pas valide.",
+    "unsupported_eek_curve": "Le serveur a renvoyé une courbe EEK non prise en charge.",
+    "invalid_rkp_response": "La réponse du serveur RKP n’est pas valide.",
+    "device_not_registered": "Le serveur RKP ne reconnaît pas cet appareil.",
+    "rkp_client_error": "Le serveur RKP a refusé la demande.",
+    "rkp_server_error": "Le serveur RKP a rencontré une erreur."
   }
 }

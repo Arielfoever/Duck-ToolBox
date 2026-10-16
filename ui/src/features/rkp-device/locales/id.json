@@ -2,14 +2,14 @@
   "meta": {
     "title": "Penerbit RKP Perangkat",
     "description": "Tandatangani kunci P-256 dengan KeyMint TA perangkat ini, ambil rantai sertifikat RKP dari Google, lalu ekspor sebagai keybox.xml.",
-    "warning": "Ini hanya berfungsi di sebagian perangkat dan hanya menerbitkan sertifikat RKP. Fitur ini mengendalikan aplikasi tepercaya KeyMint Qualcomm secara langsung lewat ABI vendor yang tidak dimiliki firmware lain. ABI yang salah dapat membuat proses aplikasi tepercaya berhenti, dan karena kunci privat tetap di perangkat, keybox yang dihasilkan hanya bisa dipakai di perangkat itu. Baca prasyaratnya sebelum melanjutkan."
+    "warning": "Fitur ini hanya berfungsi di sebagian perangkat dan hanya menerbitkan sertifikat RKP. Fitur menggunakan ABI privat Qualcomm KeyMint yang dapat berbeda antar-firmware. ABI yang tidak kompatibel dapat membuat proses pekerja atau aplikasi tepercaya berhenti. Keybox yang diekspor berisi kunci privat yang dibuat oleh perangkat lunak; simpan berkas dengan aman. Baca prasyarat sebelum melanjutkan."
   },
   "warning": {
     "title": "Sebelum melanjutkan"
   },
   "limitations": {
     "partial_device_support": "Hanya berfungsi di sebagian perangkat. Firmware Qualcomm KeyMint, akses root, /dev/smcinvoke, dan libkeymasterdeviceutils.so semuanya diperlukan, namun ABI vendor tetap bisa berbeda.",
-    "rkp_only": "Hanya sertifikat RKP yang dapat diterbitkan. Jalur ini tidak pernah menghasilkan kunci atestasi uji atau perangkat lunak, dan tidak bisa membuat keybox tanpa perangkat asli."
+    "rkp_only": "Hanya sertifikat RKP yang dapat diterbitkan. Perangkat yang kompatibel diperlukan untuk mendapatkan CSR bertanda tangan. Kunci privat yang diekspor dibuat oleh perangkat lunak; tidak ada kunci privat yang diambil dari TEE."
   },
   "status": {
     "title": "Prasyarat",
@@ -62,7 +62,7 @@
   },
   "confirm": {
     "title": "Kirim permintaan ke KeyMint TA?",
-    "body": "Ini menjalankan CSR_V2 pada aplikasi tepercaya Qualcomm KeyMint di perangkat lalu mengirim hasilnya ke Google. Hanya berfungsi di sebagian perangkat dan hanya menerbitkan sertifikat RKP. Permintaan tidak membaca apa pun dan tidak mengubah status perangkat; hanya berkas hasil yang ditulis. Lanjutkan?"
+    "body": "Ini menjalankan CSR_V2 pada aplikasi tepercaya Qualcomm KeyMint di perangkat lalu mengirim hasilnya ke Google. Hanya berfungsi di sebagian perangkat dan hanya menerbitkan sertifikat RKP. Berkas yang diekspor berisi kunci privat; simpan dengan aman. Lanjutkan?"
   },
   "errors": {
     "acknowledgement_required": "Batasan belum disetujui.",
@@ -72,6 +72,12 @@
     "ta_rejected": "Aplikasi tepercaya KeyMint menolak permintaan.",
     "invalid_ta_response": "Aplikasi tepercaya KeyMint mengembalikan respons cacat.",
     "invalid_device_csr": "CSR dari perangkat gagal diverifikasi.",
-    "certificate_key_mismatch": "Sertifikat yang diterbitkan tidak cocok dengan kunci yang dibuat."
+    "certificate_key_mismatch": "Sertifikat yang diterbitkan tidak cocok dengan kunci yang dibuat.",
+    "invalid_server_url": "URL server penyediaan tidak valid.",
+    "unsupported_eek_curve": "Server mengembalikan kurva EEK yang tidak didukung.",
+    "invalid_rkp_response": "Respons server RKP tidak valid.",
+    "device_not_registered": "Server RKP tidak mengenali perangkat ini.",
+    "rkp_client_error": "Server RKP menolak permintaan.",
+    "rkp_server_error": "Server RKP mengalami error."
   }
 }

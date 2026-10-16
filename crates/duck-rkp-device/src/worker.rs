@@ -1,12 +1,14 @@
 use std::{
     fs,
+    io::Read as _,
+    os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _},
     path::Path,
     process::{Child, Command, ExitStatus, Stdio},
     thread,
     time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use duck_core::AppPaths;
 use serde::{Deserialize, Serialize};
 
@@ -16,12 +18,40 @@ use crate::{
 };
 
 const TIMEOUT: Duration = Duration::from_secs(30);
-const MAX_REPLY_FILE: u64 = (BUFFER_SIZE * 6) as u64;
+const MAX_REPLY_FILE: usize = BUFFER_SIZE * 6;
+// Bionic reads this before main and permits these directories in the worker's
+// default namespace. Keeping the default namespace retains system dependency links
+// (e.g. libcrypto), which the exported sphal namespace may not provide on a ROM.
+// Only this child receives the setting; the parent's loader state is untouched.
+const VENDOR_LIBRARY_PATH: &str = "/vendor/lib64:/odm/lib64:/vendor/lib64/hw:/odm/lib64/hw";
 
 #[derive(Serialize, Deserialize)]
 enum Reply {
     Payload(Vec<u8>),
-    Error { code: String, message: String },
+    Error(DeviceRkpError),
+}
+
+impl Reply {
+    fn from_result(result: Result<Vec<u8>>) -> Self {
+        match result {
+            Ok(payload) => Self::Payload(payload),
+            Err(error) => Self::Error(
+                error
+                    .downcast::<DeviceRkpError>()
+                    .unwrap_or_else(|error| DeviceRkpError::Transport(format!("{error:#}"))),
+            ),
+        }
+    }
+
+    fn into_result(self) -> Result<Vec<u8>> {
+        match self {
+            Self::Payload(payload) if payload.len() <= BUFFER_SIZE => Ok(payload),
+            Self::Payload(_) => {
+                Err(DeviceRkpError::InvalidResponse("payload too large".into()).into())
+            }
+            Self::Error(error) => Err(error.into()),
+        }
+    }
 }
 
 /// Vendor calls cannot be interrupted safely inside the CLI process. A child owns
@@ -29,14 +59,19 @@ enum Reply {
 pub(crate) fn sign(paths: &AppPaths, request: &[u8]) -> Result<Vec<u8>> {
     // Anything around the child process is a local transport failure, not an internal
     // error: the WebUI has a message for `ta_transport_error` and none for the latter.
-    let local = |error: anyhow::Error| {
-        DeviceRkpError::Transport(format!("device RKP worker failed: {error:#}"))
+    let local = |error: anyhow::Error| -> anyhow::Error {
+        if error.is::<DeviceRkpError>() {
+            error
+        } else {
+            DeviceRkpError::Transport(format!("device RKP worker failed: {error:#}")).into()
+        }
     };
     fs::create_dir_all(&paths.tmp_dir)
         .with_context(|| format!("create {}", paths.tmp_dir.display()))
         .map_err(local)?;
     let exchange = tempfile::Builder::new()
         .prefix("rkp-device-")
+        .permissions(fs::Permissions::from_mode(0o700))
         .tempdir_in(&paths.tmp_dir)
         .context("create the worker exchange directory")
         .map_err(local)?;
@@ -48,6 +83,7 @@ pub(crate) fn sign(paths: &AppPaths, request: &[u8]) -> Result<Vec<u8>> {
         .map_err(local)?;
     let mut command = Command::new(&executable);
     command
+        .env("LD_LIBRARY_PATH", VENDOR_LIBRARY_PATH)
         .args(["rkp-device", "ta-csr", "--exchange"])
         .arg(exchange.path())
         .stdin(Stdio::null())
@@ -67,39 +103,18 @@ pub(crate) fn sign(paths: &AppPaths, request: &[u8]) -> Result<Vec<u8>> {
         ))
         .into());
     }
-    if fs::metadata(&reply_path)
-        .with_context(|| format!("read {}", reply_path.display()))
-        .map_err(local)?
-        .len()
-        > MAX_REPLY_FILE
-    {
-        return Err(DeviceRkpError::InvalidResponse("worker reply too large".into()).into());
-    }
-    let reply = fs::read(&reply_path)
-        .with_context(|| format!("read {}", reply_path.display()))
-        .map_err(local)?;
-    match serde_json::from_slice(&reply)
+    let reply = read_exchange_file(&reply_path, MAX_REPLY_FILE).map_err(local)?;
+    serde_json::from_slice::<Reply>(&reply)
         .context("parse the worker reply")
         .map_err(|error| DeviceRkpError::InvalidResponse(format!("{error:#}")))?
-    {
-        Reply::Payload(payload) if payload.len() <= BUFFER_SIZE => Ok(payload),
-        Reply::Payload(_) => {
-            Err(DeviceRkpError::InvalidResponse("payload too large".into()).into())
-        }
-        Reply::Error { code, message } if code == "ta_rejected" => {
-            let status = message.parse().context("invalid TA status from worker")?;
-            Err(DeviceRkpError::Rejected(status).into())
-        }
-        Reply::Error { message, .. } => Err(DeviceRkpError::Transport(message).into()),
-    }
+        .into_result()
 }
 
 /// Puts the child in its own session, so a Ctrl-C aimed at the CLI (or anything else
 /// signalling the process group) cannot interrupt the vendor call halfway through. The
 /// null stdio above leaves the new session with nothing open on the terminal.
 ///
-/// This is the crate's only `unsafe`: there is no safe API for `setsid` between fork and
-/// exec, and killing the child mid-call is worse than the risk of calling it.
+/// There is no safe API for `setsid` between fork and exec.
 #[cfg(unix)]
 #[allow(unsafe_code)]
 fn detach_from_terminal(command: &mut Command) {
@@ -122,32 +137,47 @@ fn detach_from_terminal(_command: &mut Command) {}
 
 pub(crate) fn execute(exchange: &Path) -> Result<()> {
     let result = (|| {
-        let path = exchange.join("request.bin");
-        if fs::metadata(&path)?.len() > MAX_REQUEST_SIZE as u64 {
-            bail!("worker request too large");
-        }
-        let request = fs::read(path)?;
+        let request = read_exchange_file(&exchange.join("request.bin"), MAX_REQUEST_SIZE)?;
         protocol::ta_payload(&request)?;
         native_request(&request)
     })();
-    let reply = match result {
-        Ok(payload) => Reply::Payload(payload),
-        Err(error) => {
-            let message = match error.downcast_ref::<DeviceRkpError>() {
-                Some(DeviceRkpError::Rejected(status)) => status.to_string(),
-                _ => format!("{error:#}"),
-            };
-            Reply::Error {
-                code: crate::error::code_of(&error).into(),
-                message,
-            }
-        }
-    };
+    let reply = Reply::from_result(result);
     let encoded = serde_json::to_vec(&reply).context("encode the worker reply")?;
     fs::write(exchange.join("reply.json"), encoded)
         .context("write the worker reply")
         .map_err(|error| DeviceRkpError::InvalidResponse(format!("{error:#}")))?;
     Ok(())
+}
+
+/// Read one regular exchange file through the same descriptor used for its size
+/// check. The read itself is bounded too, even if the file grows after metadata().
+fn read_exchange_file(path: &Path, limit: usize) -> Result<Vec<u8>> {
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let metadata = file
+        .metadata()
+        .with_context(|| format!("stat {}", path.display()))?;
+    if !metadata.is_file() || metadata.len() > limit as u64 {
+        return Err(DeviceRkpError::InvalidResponse(format!(
+            "{} must be a regular file of at most {limit} bytes",
+            path.display()
+        ))
+        .into());
+    }
+    let mut bytes = Vec::new();
+    file.take(limit as u64 + 1)
+        .read_to_end(&mut bytes)
+        .with_context(|| format!("read {}", path.display()))?;
+    if bytes.len() > limit {
+        return Err(DeviceRkpError::InvalidResponse(
+            "worker exchange file grew beyond its limit".into(),
+        )
+        .into());
+    }
+    Ok(bytes)
 }
 
 fn native_request(request: &[u8]) -> Result<Vec<u8>> {
@@ -168,7 +198,9 @@ impl Worker {
     fn wait(&mut self, timeout: Duration) -> Result<ExitStatus> {
         let deadline = Instant::now() + timeout;
         loop {
-            if let Some(status) = self.0.try_wait()? {
+            if let Some(status) = self.0.try_wait().map_err(|error| {
+                DeviceRkpError::Transport(format!("wait for the KeyMint worker: {error}"))
+            })? {
                 return Ok(status);
             }
             if Instant::now() >= deadline {
@@ -189,6 +221,67 @@ impl Drop for Worker {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exchange_reads_are_bounded_and_reject_nonregular_files() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("request.bin");
+        fs::write(&file, [1, 2, 3]).unwrap();
+        assert_eq!(read_exchange_file(&file, 3).unwrap(), [1, 2, 3]);
+        let error = read_exchange_file(&file, 2).unwrap_err();
+        assert_eq!(crate::error::code_of(&error), "invalid_ta_response");
+        assert!(read_exchange_file(dir.path(), 100).is_err());
+        let link = dir.path().join("link.bin");
+        symlink(&file, &link).unwrap();
+        assert!(read_exchange_file(&link, 100).is_err());
+    }
+
+    #[test]
+    fn worker_errors_keep_their_type_across_the_process_boundary() {
+        for error in [
+            DeviceRkpError::Rejected(-18),
+            DeviceRkpError::Rejected(-10001),
+            DeviceRkpError::InvalidResponse("invalid payload length".into()),
+            DeviceRkpError::UnsupportedDevice("Android arm64 required".into()),
+            DeviceRkpError::Transport("library cannot be loaded".into()),
+        ] {
+            let expected_message = error.to_string();
+            let error: anyhow::Error = error.into();
+            let expected_code = crate::error::code_of(&error);
+            let reply = Reply::from_result(Err(error.context("vendor operation")));
+            let encoded = serde_json::to_vec(&reply).unwrap();
+            let decoded: Reply = serde_json::from_slice(&encoded).unwrap();
+            let returned = decoded.into_result().unwrap_err();
+            assert_eq!(crate::error::code_of(&returned), expected_code);
+            assert_eq!(returned.to_string(), expected_message);
+        }
+    }
+
+    #[test]
+    fn untyped_worker_errors_preserve_their_diagnostics() {
+        let error = anyhow::anyhow!("dependency missing").context("load vendor library");
+        let returned = Reply::from_result(Err(error)).into_result().unwrap_err();
+        assert_eq!(crate::error::code_of(&returned), "ta_transport_error");
+        assert!(
+            returned
+                .to_string()
+                .contains("load vendor library: dependency missing")
+        );
+    }
+
+    #[test]
+    fn worker_reply_payloads_are_bounded() {
+        assert_eq!(
+            Reply::Payload(vec![1, 2, 3]).into_result().unwrap(),
+            [1, 2, 3]
+        );
+        let error = Reply::Payload(vec![0; BUFFER_SIZE + 1])
+            .into_result()
+            .unwrap_err();
+        assert_eq!(crate::error::code_of(&error), "invalid_ta_response");
+    }
 
     /// A Ctrl-C aimed at the CLI reaches the whole foreground process group, so the worker
     /// must leave it or the vendor call would be interrupted halfway through. `setsid`
@@ -216,7 +309,7 @@ mod tests {
         );
     }
 
-    /// A setup failure must be a documented code, not the generic `internal_error`.    /// A setup failure must be a documented code, not the generic `internal_error`.
+    /// A setup failure must use the transport error code.
     #[test]
     fn a_broken_exchange_directory_is_a_transport_error() {
         let dir = tempfile::tempdir().unwrap();

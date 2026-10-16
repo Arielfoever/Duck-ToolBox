@@ -7,14 +7,15 @@
 
 use std::path::PathBuf;
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::Result;
 use duck_core::BoxFuture;
-use duck_core::{Context, fs::write_bytes_atomic};
-use duck_platform::net::http_client;
+use duck_core::{AppPaths, Context};
+use duck_platform::net::{http_client, is_web_url};
 use duck_rkp::{
     cose::{EcKeyPair, generate_ec_keypair},
+    error::RkpError,
     http::{EekResponse, fetch_eek, submit_csr},
-    profile::{DEFAULT_GENERIC_FINGERPRINT, DEFAULT_SERVER_URL},
+    profile::DEFAULT_SERVER_URL,
     verify::VerifyReport,
 };
 use reqwest::Client;
@@ -84,12 +85,13 @@ pub(crate) trait Server: Sync {
 }
 
 /// The real vendor path. It runs inside a child process started from this binary.
-pub(crate) struct Device;
+pub(crate) struct Device<'a> {
+    pub paths: &'a AppPaths,
+}
 
-impl Exchange for Device {
+impl Exchange for Device<'_> {
     fn csr(&self, request: &[u8]) -> Result<Vec<u8>> {
-        let paths = duck_core::AppPaths::discover()?;
-        worker::sign(&paths, request)
+        worker::sign(self.paths, request)
     }
 }
 
@@ -102,9 +104,14 @@ pub(crate) struct Google {
 
 impl Google {
     pub(crate) fn new(server_url: Option<String>) -> Result<Self> {
+        let server_url = server_url.unwrap_or_else(|| DEFAULT_SERVER_URL.to_owned());
+        let server_url = server_url.trim().trim_end_matches('/').to_owned();
+        if !is_web_url(&server_url) {
+            return Err(RkpError::InvalidServerUrl(server_url).into());
+        }
         Ok(Self {
             client: http_client()?,
-            server_url: server_url.unwrap_or_else(|| DEFAULT_SERVER_URL.to_owned()),
+            server_url,
         })
     }
 }
@@ -156,12 +163,25 @@ pub(crate) async fn provision(
         return Err(DeviceRkpError::AcknowledgementRequired.into());
     }
 
-    let prerequisites = environment.capabilities(ctx);
+    let mut prerequisites = environment.capabilities(ctx);
+    let explicit_fingerprint = options
+        .fingerprint
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    if explicit_fingerprint.is_some() {
+        prerequisites
+            .blockers
+            .retain(|blocker| *blocker != "fingerprint_missing");
+        prerequisites.prerequisites_met = prerequisites.blockers.is_empty();
+    }
     if !prerequisites.prerequisites_met {
         return Err(DeviceRkpError::UnsupportedDevice(prerequisites.blockers.join(", ")).into());
     }
 
-    let fingerprint = resolve_fingerprint(options.fingerprint.as_deref());
+    let fingerprint = explicit_fingerprint
+        .unwrap_or(prerequisites.fingerprint.trim())
+        .to_owned();
     let key = key_source.generate()?;
     let eek = server.challenge(&fingerprint).await?;
 
@@ -171,9 +191,7 @@ pub(crate) async fn provision(
     let local_verify = protocol::validate_csr(&csr, &eek.challenge, &key.cose_public)?;
 
     let chains = server.certificates(&csr, &eek.challenge).await?;
-    let chain_der = first_chain(&chains)?;
-    protocol::validate_leaf_key(&key.secret_key, &chain_der)?;
-
+    let chain_der = single_chain(&chains)?;
     let mut artifacts = artifacts::write(
         &ctx.paths,
         artifacts::Inputs {
@@ -184,7 +202,7 @@ pub(crate) async fn provision(
         },
     )?;
     if let Some(path) = options.output {
-        write_extra_keybox(&path, &artifacts.keybox_xml)?;
+        artifacts::write_keybox(&path, &artifacts.keybox_xml)?;
         artifacts.paths.keybox_path = path.display().to_string();
     }
 
@@ -222,37 +240,19 @@ fn report(
     }
 }
 
-/// Mirrors the keybox into the path the caller asked for, so their own tooling can pick
-/// it up where it expects it.
-fn write_extra_keybox(path: &std::path::Path, xml: &str) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
-    }
-    write_bytes_atomic(path, xml.as_bytes())
-        .with_context(|| format!("write {}", path.display()))?;
-    Ok(())
-}
-
-/// The fingerprint the server binds the challenge to. The device's own value is the
-/// honest default; the generic one only keeps a host-side dry run alive.
-fn resolve_fingerprint(explicit: Option<&str>) -> String {
-    if let Some(value) = explicit.map(str::trim).filter(|value| !value.is_empty()) {
-        return value.to_owned();
-    }
-    let detected = duck_rkp::profile::detect::detect().fingerprint.value;
-    if detected.trim().is_empty() {
-        DEFAULT_GENERIC_FINGERPRINT.to_owned()
-    } else {
-        detected
-    }
-}
-
-fn first_chain(chains: &[Vec<u8>]) -> Result<Vec<u8>> {
-    let chain = chains
-        .first()
-        .context("RKP server returned no certificate chains")?;
-    if chain.len() > MAX_CERT_CHAIN_LEN {
-        bail!("issued certificate chain is larger than {MAX_CERT_CHAIN_LEN} bytes");
+fn single_chain(chains: &[Vec<u8>]) -> Result<Vec<u8>> {
+    let [chain] = chains else {
+        return Err(RkpError::InvalidRkpResponse(format!(
+            "expected one certificate chain for one requested key, got {}",
+            chains.len()
+        ))
+        .into());
+    };
+    if chain.is_empty() || chain.len() > MAX_CERT_CHAIN_LEN {
+        return Err(RkpError::InvalidRkpResponse(format!(
+            "issued certificate chain must contain 1..{MAX_CERT_CHAIN_LEN} bytes"
+        ))
+        .into());
     }
     Ok(chain.to_vec())
 }

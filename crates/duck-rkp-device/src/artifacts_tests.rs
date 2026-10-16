@@ -419,10 +419,99 @@ fn run_directories_are_unique_per_run() {
     let paths = AppPaths::for_root(root.path(), root.path());
 
     let first = super::unique_run_dir(&paths).unwrap();
-    fs::create_dir_all(&first).unwrap();
     let second = super::unique_run_dir(&paths).unwrap();
 
-    assert_ne!(first, second);
+    assert!(first.path().is_dir());
+    assert!(second.path().is_dir());
+    assert_ne!(first.path(), second.path());
+}
+
+#[test]
+fn concurrent_runs_reserve_different_directories() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = AppPaths::for_root(root.path(), root.path());
+    let barrier = std::sync::Barrier::new(16);
+    let directories = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..16)
+            .map(|_| {
+                scope.spawn(|| {
+                    barrier.wait();
+                    super::unique_run_dir(&paths).unwrap()
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    let mut names: Vec<_> = directories.iter().map(|dir| dir.path()).collect();
+    names.sort();
+    names.dedup();
+    assert_eq!(names.len(), directories.len());
+}
+
+#[cfg(unix)]
+#[test]
+fn secret_outputs_are_private_and_replace_symlinks() {
+    use std::os::unix::fs::{PermissionsExt as _, symlink};
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = AppPaths::for_root(root.path(), root.path());
+    let (secret, der) = self_signed();
+    let artifacts = write(
+        &paths,
+        Inputs {
+            secret_key: &secret,
+            csr: &[],
+            cert_chain_der: &der,
+            manufacturer: "QTI",
+        },
+    )
+    .unwrap();
+    for path in [
+        &artifacts.paths.private_key_path,
+        &artifacts.paths.keybox_path,
+    ] {
+        assert_eq!(
+            fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+    assert_eq!(
+        fs::metadata(&artifacts.paths.run_dir)
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777,
+        0o700
+    );
+
+    let destination = root.path().join("export.xml");
+    fs::write(&destination, "old").unwrap();
+    fs::set_permissions(&destination, fs::Permissions::from_mode(0o644)).unwrap();
+    super::write_keybox(&destination, &artifacts.keybox_xml).unwrap();
+    assert_eq!(
+        fs::metadata(&destination).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+
+    let target = root.path().join("untouched.xml");
+    fs::write(&target, "original").unwrap();
+    fs::remove_file(&destination).unwrap();
+    symlink(&target, &destination).unwrap();
+    super::write_keybox(&destination, &artifacts.keybox_xml).unwrap();
+    assert!(
+        !fs::symlink_metadata(&destination)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(fs::read_to_string(target).unwrap(), "original");
+    assert_eq!(
+        fs::read_to_string(destination).unwrap(),
+        artifacts.keybox_xml
+    );
 }
 
 #[test]

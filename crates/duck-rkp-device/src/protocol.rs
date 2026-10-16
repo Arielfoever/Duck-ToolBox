@@ -101,7 +101,17 @@ pub(crate) fn response_payload(response: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn unwrap_csr(payload: &[u8]) -> Result<Vec<u8>> {
+    parse_csr_response(payload)
+        .map_err(|error| DeviceRkpError::InvalidResponse(format!("{error:#}")).into())
+}
+
+fn parse_csr_response(payload: &[u8]) -> Result<Vec<u8>> {
     let value = decode_exact(payload)?;
+    // The reference transport accepts both a bare AuthenticatedRequest array and
+    // firmware that wraps it in field 61. Signature and binding checks follow either.
+    if matches!(value, Value::Array(_)) {
+        return Ok(payload.to_vec());
+    }
     let entries = as_map(&value, "KeyMint CSR response")?;
     if entries.len() != 1 {
         bail!("KeyMint CSR response must contain exactly one field");
@@ -190,13 +200,6 @@ pub(crate) fn ta_payload(request: &[u8]) -> Result<&[u8]> {
     }
     validate_request(payload)?;
     Ok(payload)
-}
-
-/// Installs the leaf certificate's public key as the one a `keybox.xml` must carry.
-pub(crate) fn validate_leaf_key(secret_key: &p256::SecretKey, cert_chain_der: &[u8]) -> Result<()> {
-    let chain = crate::artifacts::parse_der_cert_chain(cert_chain_der)
-        .map_err(|error| DeviceRkpError::InvalidCsr(format!("{error:#}")))?;
-    crate::artifacts::ensure_chain_matches_key(&chain, secret_key)
 }
 
 fn decode_exact(bytes: &[u8]) -> Result<Value> {

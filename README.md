@@ -40,9 +40,17 @@ changed, removed or added on its own.
     submits the result to Google's RKP server and exports `keybox.xml` with the private key.
   - Checks its prerequisites (Android arm64, root, `/dev/smcinvoke`,
     `libkeymasterdeviceutils.so`, Qualcomm SoC) before it sends anything.
+  - Starts its isolated worker with vendor library search paths while retaining the
+    default namespace's system dependency links. Library loading and the firmware ABI
+    still need to work on the device; prerequisite checks alone cannot confirm them.
+  - The exported keybox contains a software-generated private key. Output directories
+    are private, and both the keybox and the private key are saved with mode `0600`.
   - Only works on some devices, and only RKP certificates can be issued. Both are stated in
     a dialog before the tool opens and again before a request is sent; the backend refuses
     to run without an explicit acknowledgement.
+  - On a OnePlus PJX110 running Android 16, loading from `/data/adb` and calling the TA
+    were verified. Both this implementation and the reference client received TA status
+    `-18` for the software-key `CSR_V2` request; that test did not issue a keybox.
 - **Device ID Provisioner**: writes attestation device IDs into the Qualcomm Keymaster
   trusted app through `libQSEEComAPI.so`, with a dry-run mode.
 - **Module & updates**: version and device summary, stable and canary updates with

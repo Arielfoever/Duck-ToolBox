@@ -201,6 +201,34 @@ fn unwrap_csr_extracts_the_authenticated_request() {
     assert!(unwrap_csr(&two_fields).is_err());
 }
 
+#[test]
+fn bare_and_wrapped_authenticated_requests_are_both_verified() {
+    let (_, key) = p256_public_key();
+    let csr = valid_csr_for(&key);
+    let wrapped = encode(&Value::Map(vec![(int(61), bytes(csr.clone()))])).unwrap();
+    for payload in [&csr, &wrapped] {
+        let unwrapped = unwrap_csr(payload).unwrap();
+        assert_eq!(unwrapped, csr);
+        assert!(
+            validate_csr(&unwrapped, &[0x44; 32], &key)
+                .unwrap()
+                .signature_valid
+        );
+    }
+}
+
+#[test]
+fn malformed_response_envelopes_have_the_response_error_code() {
+    for payload in [
+        vec![0xff],
+        encode(&Value::Map(vec![])).unwrap(),
+        vec![0x80, 0x00],
+    ] {
+        let error = unwrap_csr(&payload).unwrap_err();
+        assert_eq!(crate::error::code_of(&error), "invalid_ta_response");
+    }
+}
+
 /// A structurally valid, correctly signed CSR for `key`, so the negative cases below reach
 /// the inner shape checks instead of failing verification first.
 fn valid_csr_for(key: &Value) -> Vec<u8> {

@@ -23,7 +23,7 @@ describe.skipIf(!hasDuckd)("device RKP API against the real duckd", CONTRACT, ()
     expect(status.limitations).toEqual(["partial_device_support", "rkp_only"])
   })
 
-  it("refuses to provision without the acknowledgement flag", async () => {
+  it("sends the acknowledgement and reports unmet device prerequisites", async () => {
     host = installHost({ props: DEVICE_PROPS })
 
     const error = await rkpDeviceApi.provision().catch((caught: unknown) => caught)

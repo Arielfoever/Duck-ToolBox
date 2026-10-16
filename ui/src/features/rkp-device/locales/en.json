@@ -2,14 +2,14 @@
   "meta": {
     "title": "Device RKP Issuer",
     "description": "Sign a P-256 key with this device's KeyMint TA and get an RKP certificate chain from Google, exported as keybox.xml.",
-    "warning": "This only works on some devices, and it only issues RKP certificates. It drives the Qualcomm KeyMint trusted app directly through a vendor ABI that other firmware does not share. A wrong ABI can crash the trusted app process, and because the private key stays on this device the resulting keybox is only usable on this device. Read the prerequisites before continuing."
+    "warning": "This only works on some devices and only issues RKP certificates. It uses a private Qualcomm KeyMint ABI that may differ across firmware. An incompatible ABI can crash the worker or trusted app. The exported keybox contains a software-generated private key; keep the files private. Read the prerequisites before continuing."
   },
   "warning": {
     "title": "Before you continue"
   },
   "limitations": {
     "partial_device_support": "Only some devices work. Qualcomm KeyMint firmware, root access, /dev/smcinvoke and libkeymasterdeviceutils.so are all required, but even then the vendor ABI may differ.",
-    "rkp_only": "Only RKP certificates can be issued. This path never produces test or software attestation keys, and it cannot be pointed at a keybox without a real device."
+    "rkp_only": "Only RKP certificates can be issued. A compatible device is required to obtain the signed CSR. The exported private key is generated in software; no private key is extracted from the TEE."
   },
   "status": {
     "title": "Prerequisites",
@@ -62,7 +62,7 @@
   },
   "confirm": {
     "title": "Send a request to the KeyMint TA?",
-    "body": "This runs CSR_V2 on the device's Qualcomm KeyMint trusted app and submits the result to Google. It only works on some devices and only RKP certificates can be issued. The request reads nothing and changes no device state; only the generated files are written. Continue?"
+    "body": "This runs CSR_V2 on the device's Qualcomm KeyMint trusted app and submits the result to Google. It only works on some devices and only RKP certificates can be issued. The exported files contain a private key; keep them private. Continue?"
   },
   "errors": {
     "acknowledgement_required": "The limitations were not acknowledged.",
@@ -72,6 +72,12 @@
     "ta_rejected": "The KeyMint trusted app rejected the request.",
     "invalid_ta_response": "The KeyMint trusted app returned a malformed response.",
     "invalid_device_csr": "The CSR returned by the device failed validation.",
-    "certificate_key_mismatch": "The issued certificate does not match the generated key."
+    "certificate_key_mismatch": "The issued certificate does not match the generated key.",
+    "invalid_server_url": "The provisioning server URL is invalid.",
+    "unsupported_eek_curve": "The server returned an unsupported EEK curve.",
+    "invalid_rkp_response": "The RKP server response is invalid.",
+    "device_not_registered": "The RKP server does not recognise this device.",
+    "rkp_client_error": "The RKP server rejected the request.",
+    "rkp_server_error": "The RKP server failed."
   }
 }

@@ -4,10 +4,7 @@
 //! The artifacts deliberately match the offline workbench: the same Tricky Store
 //! `keybox.xml`, the same CSR, and the device's certificate chain in DER.
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::Path};
 
 use anyhow::{Context, Result, anyhow, bail};
 use base64ct::{Base64, Encoding};
@@ -93,13 +90,11 @@ pub(crate) struct Inputs<'a> {
 /// The chain is put in keybox order once, so the file and the JSON summary describe the
 /// same chain.
 pub(crate) fn write(paths: &AppPaths, inputs: Inputs<'_>) -> Result<Artifacts> {
-    let chain = parse_der_cert_chain(inputs.cert_chain_der)?;
+    let chain = parse_der_cert_chain(inputs.cert_chain_der)
+        .map_err(|error| DeviceRkpError::InvalidCsr(format!("{error:#}")))?;
     ensure_chain_matches_key(&chain, inputs.secret_key)?;
     ensure_chain_is_linked(&chain)?;
     let chain = keybox_order(&chain)?;
-
-    let run_dir = unique_run_dir(paths)?;
-    fs::create_dir_all(&run_dir).with_context(|| format!("create {}", run_dir.display()))?;
 
     let device_id = device_id(inputs.manufacturer)?;
     let keybox_xml = duck_rkp::keybox_xml::build_keybox_xml(
@@ -108,30 +103,30 @@ pub(crate) fn write(paths: &AppPaths, inputs: Inputs<'_>) -> Result<Artifacts> {
         &device_id,
     )?;
     let private_key_pem = private_key_pem(inputs.secret_key)?;
+    // TempDir reserves a private directory atomically and removes partial output on
+    // failure. It is retained only once every artifact has been written successfully.
+    let run_dir = unique_run_dir(paths)?;
+    let run_path = run_dir.path();
 
     let artifact_paths = ArtifactPaths {
-        keybox_path: run_dir.join("keybox.xml").display().to_string(),
-        csr_path: run_dir.join("csr.cbor").display().to_string(),
-        cert_chain_path: run_dir.join("cert_chain.der").display().to_string(),
-        private_key_path: run_dir.join("private_key.pem").display().to_string(),
-        run_dir: run_dir.display().to_string(),
+        keybox_path: run_path.join("keybox.xml").display().to_string(),
+        csr_path: run_path.join("csr.cbor").display().to_string(),
+        cert_chain_path: run_path.join("cert_chain.der").display().to_string(),
+        private_key_path: run_path.join("private_key.pem").display().to_string(),
+        run_dir: run_path.display().to_string(),
     };
 
-    // The private key goes first: a keybox without its key is useless, and its file mode
-    // is the only thing protecting the key.
     write_secret(
         Path::new(&artifact_paths.private_key_path),
         private_key_pem.as_bytes(),
     )?;
-    write_bytes_atomic(
-        Path::new(&artifact_paths.keybox_path),
-        keybox_xml.as_bytes(),
-    )?;
+    write_keybox(Path::new(&artifact_paths.keybox_path), &keybox_xml)?;
     write_bytes_atomic(Path::new(&artifact_paths.csr_path), inputs.csr)?;
     write_bytes_atomic(
         Path::new(&artifact_paths.cert_chain_path),
         inputs.cert_chain_der,
     )?;
+    let _ = run_dir.keep();
 
     Ok(Artifacts {
         keybox_xml,
@@ -288,10 +283,10 @@ fn p256_subject_public_key(tbs: &x509_cert::TbsCertificate) -> Option<Vec<u8>> {
     if curve.to_string() != P256_CURVE_OID {
         return None;
     }
-    let point = spki.subject_public_key.raw_bytes().to_vec();
-    // Reject a point that is not actually on the curve instead of storing it.
-    p256::PublicKey::from_sec1_bytes(&point).ok()?;
-    Some(point)
+    let point = spki.subject_public_key.raw_bytes();
+    // Normalize compressed and uncompressed encodings before comparing with the key.
+    let public_key = p256::PublicKey::from_sec1_bytes(point).ok()?;
+    Some(public_key.to_sec1_bytes().to_vec())
 }
 
 fn private_key_pem(secret_key: &P256SecretKey) -> Result<String> {
@@ -301,8 +296,10 @@ fn private_key_pem(secret_key: &P256SecretKey) -> Result<String> {
     Ok(pem_wrap("EC PRIVATE KEY", der.as_slice()))
 }
 
-/// Returns `<outputs>/rkp-device-<millis>`, or a numbered suffix when that exists.
-fn unique_run_dir(paths: &AppPaths) -> Result<PathBuf> {
+/// Reserves a private output directory with a timestamp and a random suffix.
+fn unique_run_dir(paths: &AppPaths) -> Result<tempfile::TempDir> {
+    use std::os::unix::fs::PermissionsExt as _;
+
     fs::create_dir_all(&paths.outputs_dir)
         .with_context(|| format!("create {}", paths.outputs_dir.display()))?;
     let millis = std::time::SystemTime::now()
@@ -310,21 +307,16 @@ fn unique_run_dir(paths: &AppPaths) -> Result<PathBuf> {
         .context("system clock is before UNIX_EPOCH")?
         .as_millis();
 
-    for attempt in 0..32_u32 {
-        let name = if attempt == 0 {
-            format!("rkp-device-{millis}")
-        } else {
-            format!("rkp-device-{millis}_{attempt}")
-        };
-        let candidate = paths.outputs_dir.join(name);
-        if !candidate.exists() {
-            return Ok(candidate);
-        }
-    }
-    bail!(
-        "failed to resolve a unique output directory under {}",
-        paths.outputs_dir.display()
-    )
+    tempfile::Builder::new()
+        .prefix(&format!("rkp-device-{millis}-"))
+        .permissions(fs::Permissions::from_mode(0o700))
+        .tempdir_in(&paths.outputs_dir)
+        .with_context(|| {
+            format!(
+                "create a run directory under {}",
+                paths.outputs_dir.display()
+            )
+        })
 }
 
 fn device_id(manufacturer: &str) -> Result<String> {
@@ -339,20 +331,32 @@ fn device_id(manufacturer: &str) -> Result<String> {
     Ok(format!("{manufacturer}-{}", hex::encode(random)))
 }
 
-fn write_secret(path: &Path, bytes: &[u8]) -> Result<()> {
-    use std::{io::Write as _, os::unix::fs::OpenOptionsExt as _};
+/// A keybox embeds the private key, so both the saved artifact and an explicit output
+/// copy must have the same restrictive permissions as the standalone private key.
+pub(crate) fn write_keybox(path: &Path, xml: &str) -> Result<()> {
+    write_secret(path, xml.as_bytes())
+}
 
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)
-        .with_context(|| format!("create {}", path.display()))?;
+fn write_secret(path: &Path, bytes: &[u8]) -> Result<()> {
+    use std::io::Write as _;
+
+    let parent = path
+        .parent()
+        .context("secret output has no parent directory")?;
+    fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+    // NamedTempFile creates a fresh 0600 file, even with a permissive caller umask or
+    // an existing destination whose permissions are too broad. Persist replaces the
+    // destination atomically without following a destination symlink.
+    let mut file = tempfile::NamedTempFile::new_in(parent)
+        .with_context(|| format!("create a temporary file under {}", parent.display()))?;
     file.write_all(bytes)
         .with_context(|| format!("write {}", path.display()))?;
-    file.flush()
-        .with_context(|| format!("flush {}", path.display()))?;
+    file.as_file()
+        .sync_all()
+        .with_context(|| format!("sync {}", path.display()))?;
+    file.persist(path)
+        .map_err(|error| error.error)
+        .with_context(|| format!("write {}", path.display()))?;
     Ok(())
 }
 

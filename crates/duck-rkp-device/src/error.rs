@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Serialize, Deserialize)]
 pub(crate) enum DeviceRkpError {
     #[error(
         "only some devices support this feature and only RKP certificates can be issued; pass --acknowledge-limitations to continue"

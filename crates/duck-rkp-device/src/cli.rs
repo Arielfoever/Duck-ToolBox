@@ -65,7 +65,7 @@ fn dispatch<'a>(command: Command, ctx: &'a Context) -> BoxFuture<'a, CommandResu
                         acknowledge_limitations,
                         options,
                         &service::RandomKeys,
-                        &service::Device,
+                        &service::Device { paths: &ctx.paths },
                         &server,
                         &service::DeviceEnvironment,
                     )

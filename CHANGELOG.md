@@ -1,12 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Device RKP Issuer
+- Recognizes QTI as Qualcomm and gives the isolated worker vendor library search paths,
+  retaining the default namespace's system dependency links for libraries such as libcrypto.
+- Preserves worker error types and accepts bare as well as field-61-wrapped CSRs.
+- Bounds exchange-file reads, rejects nonregular files and symlinks, and requires exactly
+  one nonempty certificate chain for the requested key.
+- Reserves private output directories atomically, removes partial runs on write failure,
+  and saves keyboxes and private keys with mode `0600`, including explicit output copies.
+- Uses the prerequisite report's device fingerprint consistently; an explicit fingerprint
+  can satisfy a missing fingerprint without bypassing other prerequisites.
+- Corrects the key export description: the exported keybox includes a software-generated
+  private key; this path does not extract a private key from the TEE.
+
 ## 0.1.3-stable - 2026-10-17
 
 ### Device RKP Issuer
 - New tool: signs a P-256 key we generated with this device's Qualcomm KeyMint TA
   (`CSR_V2`, command `0x3122` over `libkeymasterdeviceutils.so`) and submits the resulting
   `AuthenticatedRequest` to Google's RKP server, then exports `keybox.xml` plus its private
-  key. Nothing is read out of TEE memory and no device state is changed.
+  key. The request does not extract a private key from the TEE.
 - Warns twice before it can run, and the backend refuses a run without
   `--acknowledge-limitations`: only some devices work, and only RKP certificates can be
   issued.
@@ -14,8 +29,8 @@
   SoC first, and reports exactly which prerequisite is missing.
 - Validates the device's CSR (DICE chain, signature, challenge, `keysToSign`) and binds the
   issued certificate chain to the generated key before writing anything. The chain must also
-  be one leaf-to-root path with no certificate left off it, so a keybox can never ship a
-  chain the device would refuse to verify.
+  be one leaf-to-root path with no certificate left off it. These local shape and key
+  checks do not establish certificate trust, revocation status or server acceptance.
 
 ## 0.1.2-stable - 2026-10-11
 

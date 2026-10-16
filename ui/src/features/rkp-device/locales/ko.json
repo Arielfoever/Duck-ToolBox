@@ -2,14 +2,14 @@
   "meta": {
     "title": "기기 RKP 발급",
     "description": "이 기기의 KeyMint TA로 P-256 키에 서명하고 Google에서 RKP 인증서 체인을 받아 keybox.xml로 내보냅니다.",
-    "warning": "일부 기기에서만 동작하며 RKP 인증서만 발급할 수 있습니다. 벤더 ABI를 통해 Qualcomm KeyMint 트러스트 앱을 직접 구동하므로 다른 펌웨어에는 같은 ABI가 없습니다. ABI가 맞지 않으면 트러스트 앱 프로세스가 종료될 수 있고, 개인 키가 기기에 남으므로 생성된 keybox도 이 기기에서만 쓸 수 있습니다. 계속하기 전에 사전 조건을 확인하세요."
+    "warning": "일부 기기에서만 동작하며 RKP 인증서만 발급합니다. Qualcomm KeyMint의 비공개 벤더 ABI를 사용하며 펌웨어에 따라 ABI가 다를 수 있습니다. 호환되지 않는 ABI는 작업 프로세스나 신뢰 앱을 종료시킬 수 있습니다. 내보낸 keybox에는 소프트웨어로 생성한 개인 키가 포함되므로 파일을 안전하게 보관하세요. 계속하기 전에 사전 조건을 확인하세요."
   },
   "warning": {
     "title": "계속하기 전에"
   },
   "limitations": {
     "partial_device_support": "일부 기기에서만 동작합니다. Qualcomm KeyMint 펌웨어, root 권한, /dev/smcinvoke, libkeymasterdeviceutils.so가 모두 필요하지만 그래도 벤더 ABI는 다를 수 있습니다.",
-    "rkp_only": "RKP 인증서만 발급할 수 있습니다. 이 경로는 테스트 인증서나 소프트웨어 증명 키를 만들지 않으며, 실기기 없이 쓸 수 있는 keybox도 만들지 않습니다."
+    "rkp_only": "RKP 인증서만 발급할 수 있습니다. 서명된 CSR을 얻으려면 호환되는 실제 기기가 필요합니다. 내보내는 개인 키는 소프트웨어로 생성되며 TEE에서 개인 키를 추출하지 않습니다."
   },
   "status": {
     "title": "사전 조건",
@@ -62,7 +62,7 @@
   },
   "confirm": {
     "title": "KeyMint TA로 요청을 보낼까요?",
-    "body": "이 기기의 Qualcomm KeyMint 트러스트 앱에서 CSR_V2를 실행하고 결과를 Google에 제출합니다. 일부 기기에서만 동작하며 RKP 인증서만 발급할 수 있습니다. 요청은 읽기만 하고 기기 상태를 바꾸지 않으며 생성된 파일만 씁니다. 계속할까요?"
+    "body": "이 기기의 Qualcomm KeyMint 트러스트 앱에서 CSR_V2를 실행하고 결과를 Google에 제출합니다. 일부 기기에서만 동작하며 RKP 인증서만 발급할 수 있습니다. 내보낸 파일에는 개인 키가 포함되므로 안전하게 보관하세요. 계속할까요?"
   },
   "errors": {
     "acknowledgement_required": "제한 사항을 확인하지 않았습니다.",
@@ -72,6 +72,12 @@
     "ta_rejected": "KeyMint 트러스트 앱이 요청을 거부했습니다.",
     "invalid_ta_response": "KeyMint 트러스트 앱이 잘못된 응답을 반환했습니다.",
     "invalid_device_csr": "기기가 반환한 CSR이 검증에 실패했습니다.",
-    "certificate_key_mismatch": "발급된 인증서가 생성한 키와 일치하지 않습니다."
+    "certificate_key_mismatch": "발급된 인증서가 생성한 키와 일치하지 않습니다.",
+    "invalid_server_url": "프로비저닝 서버 URL이 잘못되었습니다.",
+    "unsupported_eek_curve": "서버에서 지원되지 않는 EEK 곡선을 반환했습니다.",
+    "invalid_rkp_response": "RKP 서버 응답이 잘못되었습니다.",
+    "device_not_registered": "RKP 서버에서 이 기기를 인식하지 못합니다.",
+    "rkp_client_error": "RKP 서버에서 요청을 거부했습니다.",
+    "rkp_server_error": "RKP 서버에 오류가 발생했습니다."
   }
 }

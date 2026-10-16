@@ -509,6 +509,63 @@ async fn provision_honors_an_explicit_fingerprint() {
 }
 
 #[tokio::test]
+async fn the_detected_device_fingerprint_is_the_default() {
+    let (_dir, ctx) = working_dir("rkp-device-detected-fingerprint");
+    let server = seeded_server();
+    let data = provision(
+        &ctx,
+        true,
+        Options::default(),
+        &FixedKeys,
+        &FakeTa::new(),
+        &server,
+        &FakeEnvironment,
+    )
+    .await
+    .unwrap();
+    assert_eq!(data.fingerprint, FINGERPRINT);
+    assert_eq!(
+        server.fingerprint.lock().unwrap().as_deref(),
+        Some(FINGERPRINT)
+    );
+}
+
+#[tokio::test]
+async fn an_explicit_fingerprint_satisfies_only_the_fingerprint_prerequisite() {
+    let (_dir, ctx) = working_dir("rkp-device-missing-fingerprint");
+    let server = seeded_server();
+    for blockers in [
+        vec!["fingerprint_missing"],
+        vec!["fingerprint_missing", "root_required"],
+    ] {
+        let expected_to_pass = blockers.len() == 1;
+        let result = provision(
+            &ctx,
+            true,
+            Options {
+                fingerprint: Some("  custom/fingerprint  ".into()),
+                output: None,
+            },
+            &FixedKeys,
+            &FakeTa::new(),
+            &server,
+            &BlockedEnvironment(blockers),
+        )
+        .await;
+        if expected_to_pass {
+            let data = result.unwrap();
+            assert_eq!(data.fingerprint, "custom/fingerprint");
+            assert!(data.prerequisites.prerequisites_met);
+            assert!(data.prerequisites.blockers.is_empty());
+        } else {
+            let error = result.unwrap_err();
+            assert_eq!(crate::error::code_of(&error), "unsupported_device");
+            assert!(error.to_string().contains("root_required"));
+        }
+    }
+}
+
+#[tokio::test]
 async fn provision_mirrors_the_keybox_to_an_explicit_output() {
     let (dir, ctx) = working_dir("rkp-device-output");
     let ta = FakeTa::new();
@@ -543,8 +600,32 @@ fn google_accepts_a_server_override() {
 }
 
 #[test]
+fn google_validates_and_normalizes_the_server_endpoint() {
+    for url in ["", "  ", "file:///tmp/rkp", "not a URL"] {
+        let error = super::Google::new(Some(url.into())).unwrap_err();
+        assert_eq!(crate::error::code_of(&error), "invalid_server_url");
+    }
+    let server = super::Google::new(Some(" https://example.invalid/v1/  ".into())).unwrap();
+    assert_eq!(server.server_url, "https://example.invalid/v1");
+}
+
+#[test]
 fn production_environment_agrees_with_its_own_blockers() {
     let (_dir, ctx) = working_dir("rkp-device-env");
     let status = DeviceEnvironment.capabilities(&ctx);
     assert_eq!(status.prerequisites_met, status.blockers.is_empty());
+}
+
+#[test]
+fn exactly_one_nonempty_bounded_certificate_chain_is_required() {
+    for chains in [
+        vec![],
+        vec![vec![]],
+        vec![vec![1], vec![2]],
+        vec![vec![0; super::MAX_CERT_CHAIN_LEN + 1]],
+    ] {
+        let error = super::single_chain(&chains).unwrap_err();
+        assert_eq!(crate::error::code_of(&error), "invalid_rkp_response");
+    }
+    assert_eq!(super::single_chain(&[vec![1, 2, 3]]).unwrap(), [1, 2, 3]);
 }

@@ -2,14 +2,14 @@
   "meta": {
     "title": "デバイス RKP 発行",
     "description": "このデバイスの KeyMint TA で P-256 鍵に署名し、Google から RKP 証明書チェーンを取得して keybox.xml として書き出します。",
-    "warning": "対応するデバイスは一部だけで、発行できるのは RKP 証明書のみです。ベンダー ABI を通じて Qualcomm KeyMint トラステッドアプリを直接操作するため、他のファームウェアには同じ ABI がありません。ABI が一致しないとトラステッドアプリのプロセスが落ちる可能性があります。また秘密鍵は端末内に残るため、生成した keybox はこの端末でしか使えません。続行する前に前提条件を確認してください。"
+    "warning": "一部のデバイスでのみ動作し、RKP 証明書のみを発行します。Qualcomm KeyMint の非公開ベンダー ABI を使用し、ABI はファームウェアによって異なる場合があります。互換性がない場合、ワーカープロセスやトラステッドアプリがクラッシュする可能性があります。エクスポートした keybox にはソフトウェアで生成した秘密鍵が含まれるため、ファイルを厳重に管理してください。続行する前に前提条件を確認してください。"
   },
   "warning": {
     "title": "続行する前に"
   },
   "limitations": {
     "partial_device_support": "対応するのは一部のデバイスだけです。Qualcomm KeyMint ファームウェア、root 権限、/dev/smcinvoke、libkeymasterdeviceutils.so が必要ですが、それでもベンダー ABI が異なる場合があります。",
-    "rkp_only": "発行できるのは RKP 証明書のみです。この経路はテスト用証明書やソフトウェア証明鍵を生成せず、実機なしで使える keybox も作れません。"
+    "rkp_only": "発行できるのは RKP 証明書のみです。署名付き CSR の取得には対応する実機が必要です。エクスポートする秘密鍵はソフトウェアで生成され、TEE から秘密鍵を抽出することはありません。"
   },
   "status": {
     "title": "前提条件",
@@ -62,7 +62,7 @@
   },
   "confirm": {
     "title": "KeyMint TA にリクエストを送信しますか？",
-    "body": "この端末の Qualcomm KeyMint トラステッドアプリで CSR_V2 を実行し、結果を Google に送信します。対応デバイスは一部だけで、発行できるのは RKP 証明書のみです。リクエストは読み取りのみでデバイス状態を変更せず、生成されたファイルだけを書き込みます。続行しますか？"
+    "body": "この端末の Qualcomm KeyMint トラステッドアプリで CSR_V2 を実行し、結果を Google に送信します。対応デバイスは一部だけで、発行できるのは RKP 証明書のみです。エクスポートしたファイルには秘密鍵が含まれるため、厳重に管理してください。続行しますか？"
   },
   "errors": {
     "acknowledgement_required": "制限事項が確認されていません。",
@@ -72,6 +72,12 @@
     "ta_rejected": "KeyMint トラステッドアプリがリクエストを拒否しました。",
     "invalid_ta_response": "KeyMint トラステッドアプリが不正な応答を返しました。",
     "invalid_device_csr": "デバイスが返した CSR が検証に失敗しました。",
-    "certificate_key_mismatch": "発行された証明書が生成した鍵と一致しません。"
+    "certificate_key_mismatch": "発行された証明書が生成した鍵と一致しません。",
+    "invalid_server_url": "プロビジョニング サーバーの URL が無効です。",
+    "unsupported_eek_curve": "サーバーから、サポートされていない EEK 曲線が返されました。",
+    "invalid_rkp_response": "RKP サーバーからの応答が無効です。",
+    "device_not_registered": "このデバイスは RKP サーバーに認識されていません。",
+    "rkp_client_error": "RKP サーバーがリクエストを拒否しました。",
+    "rkp_server_error": "RKP サーバーでエラーが発生しました。"
   }
 }
