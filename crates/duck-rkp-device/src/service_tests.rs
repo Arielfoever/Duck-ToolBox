@@ -34,6 +34,7 @@ impl Environment for FakeEnvironment {
             library_present: true,
             device_present: true,
             v1_available: true,
+            v1_native_available: true,
             v2_available: true,
             aidl_apk: Some("/apex/com.android.rkpd/priv-app/rkpd/rkpdapp.apk".into()),
             qualcomm_soc: true,
@@ -62,6 +63,7 @@ impl Environment for BlockedEnvironment {
             library_present: false,
             device_present: false,
             v1_available: false,
+            v1_native_available: false,
             v2_available: true,
             aidl_apk: None,
             qualcomm_soc: false,
@@ -197,6 +199,7 @@ struct FakeServer {
     submitted: Mutex<Vec<Vec<u8>>>,
     fingerprint: Mutex<Option<String>>,
     challenge: [u8; 32],
+    eek_chains: Vec<duck_rkp::http::EekChain>,
 }
 
 impl FakeServer {
@@ -205,6 +208,11 @@ impl FakeServer {
             submitted: Mutex::new(Vec::new()),
             fingerprint: Mutex::new(None),
             challenge: CHALLENGE,
+            eek_chains: vec![duck_rkp::http::EekChain {
+                curve: RPC_CURVE_25519,
+                // Structurally valid COSE_Sign1 fixture; TA acceptance is simulated.
+                encoded: vec![0x81, 0x84, 0x40, 0xa0, 0x40, 0x40],
+            }],
         }
     }
 }
@@ -220,7 +228,7 @@ impl Server for FakeServer {
                 eek_public: vec![0x55; 32],
                 eek_id: vec![0x66; 4],
                 eek_curve: RPC_CURVE_25519,
-                eek_chains: Vec::new(),
+                eek_chains: self.eek_chains.clone(),
             })
         })
     }
@@ -439,7 +447,10 @@ async fn provision_rejects_a_csr_for_another_key() {
     let error = provision(
         &ctx,
         true,
-        Options::default(),
+        Options {
+            protocol: super::Protocol::V2,
+            ..Options::default()
+        },
         &FixedKeys,
         &ta,
         &server,
@@ -517,5 +528,11 @@ fn exactly_one_nonempty_bounded_certificate_chain_is_required() {
 #[path = "service_prerequisite_tests.rs"]
 mod prerequisites;
 
+#[path = "service_native_tests.rs"]
+mod native;
+
 #[path = "service_v1_tests.rs"]
 mod legacy;
+
+#[path = "service_fallback_tests.rs"]
+mod fallback;

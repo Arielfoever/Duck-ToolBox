@@ -23,7 +23,7 @@ describe.skipIf(!hasDuckd)("device RKP API against the real duckd", CONTRACT, ()
     expect(status.limitations).toEqual(["partial_device_support", "rkp_only"])
   })
 
-  it.each(["auto", "v1", "v2"] as const)(
+  it.each(["auto", "v1", "v2", "v1-native"] as const)(
     "sends acknowledgement and protocol %s",
     async (protocol) => {
       host = installHost({ props: DEVICE_PROPS })

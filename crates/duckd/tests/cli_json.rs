@@ -245,7 +245,7 @@ fn features_manifest_lists_every_registered_tool() {
         .iter()
         .find(|feature| feature["id"] == "rkp-device")
         .unwrap();
-    assert_eq!(device["contract"], 3);
+    assert_eq!(device["contract"], 5);
 }
 
 #[test]
@@ -258,6 +258,11 @@ fn explicit_device_rkp_protocol_reports_only_its_own_resource_requirements() {
             vec!["keymint_library_missing", "smcinvoke_missing"],
         ),
         ("v2", "v2_unavailable", vec!["v1_unavailable"]),
+        (
+            "v1-native",
+            "v1_native_unavailable",
+            vec!["v1_unavailable", "v2_unavailable"],
+        ),
         ("auto", "v1_unavailable", vec![]),
     ] {
         let output = command(&environment)

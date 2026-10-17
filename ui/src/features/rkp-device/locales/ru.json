@@ -8,7 +8,7 @@
     "title": "Перед продолжением"
   },
   "limitations": {
-    "partial_device_support": "Работает только на части устройств. Для V1 нужны app_process и APK RKP AIDL этого устройства. Для V2 нужны /dev/smcinvoke и libkeymasterdeviceutils.so. V1: PureSoft HBK=0.",
+    "partial_device_support": "Работает только на части устройств. Для V1 AIDL нужны app_process и APK RKP AIDL этого устройства. Для V2 нужны /dev/smcinvoke и libkeymasterdeviceutils.so. V1 AIDL: PureSoft HBK=0. Автоматический режим также пробует Native V1 после отказа других доступных способов.",
     "rkp_only": "Можно выпускать только сертификаты RKP. Для получения подписанного CSR требуется совместимое устройство. Экспортируемый закрытый ключ создаётся программно; закрытые ключи из TEE не извлекаются."
   },
   "status": {
@@ -46,7 +46,8 @@
     "soc_vendor_unknown": "Не удалось определить производителя SoC по локальным свойствам и данным ядра.",
     "soc_vendor_conflict": "Локальные сведения о SoC противоречат друг другу. Проверьте источники перед продолжением.",
     "v1_unavailable": "Для V1 нужны app_process и APK RKP AIDL этого устройства.",
-    "v2_unavailable": "Для V2 нужны /dev/smcinvoke и libkeymasterdeviceutils.so."
+    "v2_unavailable": "Для V2 нужны /dev/smcinvoke и libkeymasterdeviceutils.so.",
+    "v1_native_unavailable": "Для V1 Native нужны /dev/smcinvoke и libkeymasterdeviceutils.so."
   },
   "run": {
     "provision": "Выпустить RKP keybox",
@@ -71,8 +72,11 @@
     "onlyRkp": "Сертификат RKP",
     "onlyRkpHint": "Эту цепочку Google подписал для ключа из файла keybox. Сохраните файл закрытого ключа: без него keybox бесполезен.",
     "protocol": "Протокол",
-    "auto": "Автоматически (V2 → V1)",
-    "structureOnly": "Структура проверена; зашифрованные данные проверяет сервер"
+    "auto": "Автоматически (все способы)",
+    "structureOnly": "Структура проверена; зашифрованные данные проверяет сервер",
+    "backend": "Бэкенд",
+    "attempts": "Попытки",
+    "succeeded": "Успешно"
   },
   "confirm": {
     "title": "Отправить запрос в KeyMint TA?",
@@ -92,6 +96,7 @@
     "invalid_rkp_response": "Сервер RKP вернул некорректный ответ.",
     "device_not_registered": "Сервер RKP не распознаёт это устройство.",
     "rkp_client_error": "Сервер RKP отклонил запрос.",
-    "rkp_server_error": "Ошибка на сервере RKP."
+    "rkp_server_error": "Ошибка на сервере RKP.",
+    "all_methods_failed": "Все доступные способы выпуска завершились ошибкой. Проверьте ошибки каждой попытки."
   }
 }

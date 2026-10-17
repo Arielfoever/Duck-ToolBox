@@ -24,7 +24,7 @@ import type { KeyboxTarget } from "@/core/features"
 import { contributions } from "@/core/features"
 import { notifySuccess } from "@/core/notify"
 
-import type { Provision } from "../api"
+import type { Protocol, Provision } from "../api"
 import { rkpDeviceApi } from "../api"
 import { useRkpDeviceI18n } from "../i18n"
 
@@ -44,12 +44,15 @@ const status = useQuery({
 })
 const result = ref<Provision | null>(null)
 const confirmOpen = ref(false)
-const protocol = ref<"auto" | "v1" | "v2">("auto")
+const protocol = ref<Protocol>("auto")
 const canRun = computed(() => {
   const data = status.data.value
   return (
     data?.prerequisites_met &&
-    (protocol.value === "auto" || (protocol.value === "v1" ? data.v1_available : data.v2_available))
+    (protocol.value === "auto" ||
+      { v1: data.v1_available, v2: data.v2_available, "v1-native": data.v1_native_available }[
+        protocol.value
+      ])
   )
 })
 
@@ -59,6 +62,9 @@ const keyboxTargets = contributions("keyboxTargets")
 
 const run = useMutation({
   mutationFn: () => rkpDeviceApi.provision(protocol.value),
+  onMutate: () => {
+    result.value = null
+  },
   onSuccess: (data) => {
     result.value = data
     notifySuccess(t("run.done"))
@@ -113,6 +119,7 @@ const statusRows = computed<Row[]>(() => {
     { label: t("status.library"), value: data.library_path, mono: true },
     { label: t("status.device"), value: data.device_path, mono: true },
     { label: "V1 AIDL", value: data.v1_available ? yes : no },
+    { label: "V1 Native (0x311e)", value: data.v1_native_available ? yes : no },
     { label: "CSR_V2", value: data.v2_available ? yes : no },
     { label: t("status.fingerprint"), value: data.fingerprint },
     { label: t("status.compatibility"), value: t("status.unverified") },
@@ -123,12 +130,20 @@ function blockerText(blocker: string): string {
   return dynamic(`blockers.${blocker}`, blocker)
 }
 
+const attemptRows = computed<Row[]>(() =>
+  (result.value?.attempts ?? []).map((attempt) => ({
+    label: { v2: "CSR_V2", v1: "V1 AIDL", "v1-native": "V1 Native (0x311e)" }[attempt.method],
+    value: attempt.error ? `[${attempt.error.code}] ${attempt.error.message}` : t("run.succeeded"),
+  })),
+)
+
 const resultRows = computed<Row[]>(() => {
   const data = result.value
   if (!data) return []
   return [
     { label: t("run.mode"), value: data.mode, mono: true },
     { label: t("run.protocol"), value: data.csr_protocol.toUpperCase() },
+    { label: t("run.backend"), value: data.csr_backend === "aidl" ? "AIDL" : "Native" },
     { label: t("run.fingerprint"), value: data.fingerprint },
     { label: t("run.challenge"), value: data.challenge_hex, mono: true },
     { label: t("run.csr"), value: data.artifacts.csr_path, mono: true, copy: true },
@@ -238,6 +253,9 @@ const resultRows = computed<Row[]>(() => {
                 >V1 AIDL</SelectItem
               >
               <SelectItem value="v2" :disabled="!status.data.value.v2_available">CSR_V2</SelectItem>
+              <SelectItem value="v1-native" :disabled="!status.data.value.v1_native_available">
+                V1 Native (0x311e)
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -261,6 +279,10 @@ const resultRows = computed<Row[]>(() => {
     <template v-if="result">
       <SectionCard :title="t('run.title')">
         <KeyValueList :rows="resultRows" />
+      </SectionCard>
+
+      <SectionCard :title="t('run.attempts')">
+        <KeyValueList :rows="attemptRows" />
       </SectionCard>
 
       <div v-if="keyboxTargets.length" class="flex flex-col gap-2">

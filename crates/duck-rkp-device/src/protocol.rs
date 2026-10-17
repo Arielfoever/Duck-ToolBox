@@ -200,8 +200,12 @@ pub(crate) fn ta_payload(request: &[u8]) -> Result<&[u8]> {
     let Some((command, payload)) = request.split_at_checked(4) else {
         bail!("request is missing its command header");
     };
+    if command == crate::v1::native::COMMAND.to_le_bytes() {
+        crate::v1::native::validate_request(payload)?;
+        return Ok(payload);
+    }
     if command != CSR_COMMAND.to_le_bytes() {
-        bail!("worker only accepts CSR_V2 requests");
+        bail!("worker only accepts CSR_V2 or native V1 requests");
     }
     validate_request(payload)?;
     Ok(payload)

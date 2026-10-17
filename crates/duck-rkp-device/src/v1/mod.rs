@@ -1,5 +1,5 @@
-//! Legacy RKP signing oracle for the PureSoft firmware class with a constant zero HBK.
-//! Protocol adaptation of LazyBonesLZY/rkp-v1-oracle, revision b28480c.
+//! Legacy RKP signing adapters and shared server CSR assembly.
+//! The zero-HBK PureSoft AIDL path adapts LazyBonesLZY/rkp-v1-oracle, revision b28480c.
 //! The upstream MIT notice is distributed in module/licenses/rkp-v1-oracle.txt.
 
 use anyhow::{Result, bail};
@@ -18,6 +18,7 @@ use crate::protocol::{self, BUFFER_SIZE, decode_exact};
 
 mod bridge;
 mod discovery;
+pub(crate) mod native;
 mod wire;
 pub(crate) use bridge::sign;
 pub(crate) use discovery::{APP_PROCESS, find_aidl_apk};
@@ -118,14 +119,8 @@ pub(crate) fn assemble(
         )?;
     }
     as_map(&recipient[1], "recipient unprotected headers")?;
-    let mac_protected = encode(&Value::Map(vec![(int(1), int(5))]))?;
-    let keys = encode(&Value::Array(vec![public_key.clone()]))?;
-    let maced_keys = encode(&Value::Array(vec![
-        bytes(mac_protected),
-        Value::Map(vec![]),
-        bytes(keys),
-        bytes(response.mac),
-    ]))?;
+    let tag: [u8; 32] = response.mac.as_slice().try_into()?;
+    let maced_keys = duck_rkp::cose::cose_mac0(std::slice::from_ref(public_key), &tag)?;
     // DeviceInfo participates in the HAL's SignedMac AAD. Validation must not rewrite
     // its encoding, nor any opaque ProtectedData returned by the HAL.
     let mut csr = vec![0x84, 0x82]; // [ [verified DeviceInfo, unverified DeviceInfo], ... ]

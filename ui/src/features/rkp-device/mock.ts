@@ -1,7 +1,7 @@
 import type { MockModule } from "@/core/mock"
 import { MockFailure } from "@/core/mock"
 
-import type { DeviceStatus } from "./api"
+import type { DeviceStatus, Protocol, Provision } from "./api"
 
 const OUT = "/data/adb/duck-toolbox/var/outputs/rkp-device-1750000000000"
 
@@ -13,6 +13,7 @@ function deviceStatus(): DeviceStatus {
     library_present: true,
     device_present: true,
     v1_available: true,
+    v1_native_available: true,
     v2_available: true,
     aidl_apk: "/apex/com.android.rkpd/priv-app/rkpd/rkpdapp.apk",
     qualcomm_soc: true,
@@ -36,6 +37,7 @@ function deviceStatus(): DeviceStatus {
     status.library_present = false
     status.device_present = false
     status.v2_available = false
+    status.v1_native_available = false
   } else if (new URLSearchParams(location.search).get("rkp") === "v2-only") {
     status.v1_available = false
     status.aidl_apk = null
@@ -77,12 +79,12 @@ function deviceStatus(): DeviceStatus {
 }
 
 const mock: MockModule = {
-  feature: { id: "rkp-device", contract: 3 },
+  feature: { id: "rkp-device", contract: 5 },
   handlers: {
     "rkp-device.status": deviceStatus,
     "rkp-device.provision": (_args, flags) => {
       const protocol = flags.protocol ?? "auto"
-      if (protocol !== "auto" && protocol !== "v1" && protocol !== "v2") {
+      if (!["auto", "v1", "v2", "v1-native"].includes(protocol as string)) {
         throw new MockFailure("usage_error", "Invalid RKP protocol")
       }
       if (flags["acknowledge-limitations"] !== true) {
@@ -92,15 +94,51 @@ const mock: MockModule = {
       if (
         !status.prerequisites_met ||
         (protocol === "v1" && !status.v1_available) ||
+        (protocol === "v1-native" && !status.v1_native_available) ||
         (protocol === "v2" && !status.v2_available)
       )
         throw new MockFailure("unsupported_device", "Prerequisites are missing")
-      const v1 = protocol === "v1" || (protocol === "auto" && !status.v2_available)
+      type Method = Exclude<Protocol, "auto">
+      const available: Record<Method, boolean> = {
+        v2: status.v2_available,
+        v1: status.v1_available,
+        "v1-native": status.v1_native_available,
+      }
+      const methods =
+        protocol === "auto"
+          ? (["v2", "v1", "v1-native"] as const).filter((method) => available[method])
+          : [protocol as Method]
+      const failures = new URLSearchParams(location.search).get("rkp_fail")?.split(",") ?? []
+      const attempts: Provision["attempts"] = []
+      let selected: Method | undefined
+      for (const method of methods) {
+        const error = failures.includes(method)
+          ? { code: "ta_rejected", message: `${method} rejected the request` }
+          : null
+        attempts.push({ method, error })
+        if (error === null) {
+          selected = method
+          break
+        }
+        if (protocol !== "auto") throw new MockFailure(error.code, error.message)
+      }
+      if (!selected)
+        throw new MockFailure(
+          "all_methods_failed",
+          attempts
+            .map(
+              (attempt) => `${attempt.method} [${attempt.error?.code}]: ${attempt.error?.message}`,
+            )
+            .join("; "),
+        )
+      const v1 = selected !== "v2"
       return {
         acknowledged_limitations: true,
         limitations: status.limitations,
         mode: "device-ta-oracle",
         csr_protocol: v1 ? "v1" : "v2",
+        csr_backend: selected === "v1" ? "aidl" : "native",
+        attempts,
         fingerprint: status.fingerprint,
         challenge_hex: "9f2c1d4b6a8e0f3c5b7d9a1e2f4c6b8d0a2e4f6c8b0d2e4f6a8c0e2f4b6d8a0c",
         csr_len: 1284,

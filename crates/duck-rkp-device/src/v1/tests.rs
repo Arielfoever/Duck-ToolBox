@@ -2,7 +2,7 @@ use super::*;
 use duck_core::Sysroot;
 use std::io::{Cursor, Read};
 
-fn public_key() -> Value {
+pub(crate) fn public_key() -> Value {
     Value::Map(vec![
         (int(1), int(2)),
         (int(3), int(-7)),
