@@ -84,9 +84,9 @@ pub fn install(ctx: &Context, content: &str, source: &str) -> Result<KeyboxInsta
 fn check_backend_rules(backend: Backend, summary: &KeyboxSummary) -> Result<()> {
     let rule = |reason: &str| Err(TrickyError::BackendRule(reason.into()).into());
     match backend {
-        Backend::OhMyKeymint if !(summary.has_ecdsa && summary.has_rsa) => {
-            rule("OhMyKeymint requires a keybox with both an ECDSA and an RSA key")
-        }
+        // Backend::OhMyKeymint if !(summary.has_ecdsa && summary.has_rsa) => {
+        //     rule("OhMyKeymint requires a keybox with both an ECDSA and an RSA key")
+        // }
         Backend::OhMyKeymint if summary.chain_lengths.contains(&0) => {
             rule("OhMyKeymint requires a certificate chain for every key")
         }
