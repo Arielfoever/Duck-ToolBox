@@ -2,7 +2,37 @@
 
 ## Unreleased
 
+### TEE Attestation Extractor
+- New offline tool for extracting Keybox XML and PEM material from existing captures and
+  verifying private-key correspondence, certificate signatures and chain completeness.
+- Verifies candidate RKP identity material against the signing leaf of a locally verified
+  CSR, with separate Ed25519-seed, P-256-seed and P-256-scalar modes and raw capture offsets.
+- Returns summaries without exposing private material. Explicit exports use private output
+  directories and owner-only files; mismatched identity material cannot be exported.
+- Adds binary uploads, device file paths, manager installation through an extension point,
+  and translations in all 14 languages. Device-side acquisition is not included.
+- Local checks do not establish root trust, revocation status, registration or server acceptance.
+  Supported private keys are EC P-256/P-384 and RSA 2048–8192; RSA-1024 is unsupported.
+- Verifies private-key PEM labels against their DER encoding. Inline inputs are limited
+  to 32 KiB per file to fit shell transport; device file paths accept up to 256 KiB.
+- Finds XML document boundaries through parsed tags, accepts closing-tag whitespace,
+  and rejects illegal XML characters before exporting material.
+- Rejects trailing data in CSR CBOR items, including embedded signed payloads, protected
+  headers, DICE subject keys and configuration descriptors.
+- Resolves same-name certificate issuers by signature and handles self-issued key rotation
+  certificates without treating them as self-signed roots.
+- Ignores root-tag examples in XML comments outside the captured document.
+
+### Command wrapper
+- Preserves backend failure exit codes and tries fallback binaries only after execution
+  failures (`126` or `127`).
+
 ### Device RKP Issuer
+- Cross-checks Qualcomm aliases (including QTI/QCOM), SoC part numbers, hardware properties
+  and kernel SoC information. Unknown and conflicting evidence have separate blockers;
+  empty properties no longer imply support. The WebUI shows the evidence and keeps firmware
+  and server compatibility unverified. Feature contract 2 prevents mixing older status data
+  with the updated UI.
 - Recognizes QTI as Qualcomm and gives the isolated worker vendor library search paths,
   retaining the default namespace's system dependency links for libraries such as libcrypto.
 - Preserves worker error types and accepts bare as well as field-61-wrapped CSRs.
