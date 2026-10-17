@@ -18,10 +18,10 @@ permissions:
 
 env:
   MODULE_ID: duck-toolbox
-  ANDROID_API_LEVEL: 26
+  ANDROID_API_LEVEL: 36
   TARGET: aarch64-linux-android
   NDK_VERSION: r30
-  NODE_VERSION: 24
+  NODE_VERSION: 26
   CARGO_TERM_COLOR: always
   RELEASE_CHANNEL: ${{ inputs.stable && 'stable' || 'nightly' }}
 
