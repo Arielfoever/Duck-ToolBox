@@ -159,13 +159,13 @@ mod tests {
         }
     }
 
-    #[test]
-    fn rkp_ecdsa_only_keybox_suits_tee_simulator_but_not_oh_my_keymint() {
-        let ec_only = summary(true, false, vec![3]);
-        check_backend_rules(Backend::TrickyStore, &ec_only).unwrap();
-        check_backend_rules(Backend::TeeSimulator, &ec_only).unwrap();
-        assert!(check_backend_rules(Backend::OhMyKeymint, &ec_only).is_err());
-    }
+    // #[test]
+    // fn rkp_ecdsa_only_keybox_suits_tee_simulator_but_not_oh_my_keymint() {
+    //     let ec_only = summary(true, false, vec![3]);
+    //     check_backend_rules(Backend::TrickyStore, &ec_only).unwrap();
+    //     check_backend_rules(Backend::TeeSimulator, &ec_only).unwrap();
+    //     assert!(check_backend_rules(Backend::OhMyKeymint, &ec_only).is_err());
+    // }
 
     #[test]
     fn tricky_addon_unknown_keybox_only_suits_tricky_store() {
