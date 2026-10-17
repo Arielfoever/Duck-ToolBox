@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.6-stable - 2026-10-18
+
+### WebUI
+
+- Run shell commands through the host's queued job API when available, so slow
+  commands no longer block return navigation. Preserve output, exit status and
+  compatibility with hosts that only provide `exec`.
+- Stop restarting failed automatic update checks on each return to the home page;
+  keep manual retries and channel changes available. Read the fixed hosting module
+  identity once per WebUI session.
+- Reduce target-list reconstruction overhead with shallow query snapshots, stable
+  drafts and lightweight selection indicators. Measure new virtual rows through
+  ResizeObserver to avoid repeated forced layout, including with enlarged text.
+- Clean up command callbacks on completion and launch failures, including hosts
+  that report a companion error after a nonzero exit.
+
 ## 0.1.5-stable - 2026-10-18
 
 ### WebUI
