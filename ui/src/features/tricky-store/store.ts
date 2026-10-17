@@ -32,6 +32,7 @@ export const useTrickyStore = defineStore("tricky-store", () => {
 
   /** Takes a fresh status; pending edits survive unless `discard` is set. */
   function load(next: Status, discard = false) {
+    if (!discard && status.value === next && draft.value) return
     const keep = !discard && dirty.value
     status.value = next
     if (!keep || !draft.value) draft.value = draftFromStatus(next)

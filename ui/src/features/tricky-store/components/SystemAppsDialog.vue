@@ -4,7 +4,6 @@ import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +19,7 @@ import { useRouteModal } from "@/core/modal"
 import { useTrickyI18n } from "../i18n"
 import { matches } from "../selection"
 import { useTrickyStore } from "../store"
+import AppSelection from "./AppSelection.vue"
 
 const props = defineProps<{ labels: ReadonlyMap<string, string> }>()
 const { open, close } = useRouteModal("system-apps")
@@ -111,11 +111,7 @@ function save() {
                 {{ row.packageName }}
               </div>
             </div>
-            <Checkbox
-              :model-value="checked.has(row.packageName)"
-              tabindex="-1"
-              class="pointer-events-none"
-            />
+            <AppSelection :checked="checked.has(row.packageName)" />
           </div>
         </template>
       </VirtualList>

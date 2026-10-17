@@ -5,11 +5,11 @@ import { useTemplateRef } from "vue"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import AppIcon from "@/core/components/AppIcon.vue"
 
 import type { TargetMode } from "../api"
 import { useTrickyI18n } from "../i18n"
+import AppSelection from "./AppSelection.vue"
 
 const props = defineProps<{
   packageName: string
@@ -102,12 +102,7 @@ const markers: Record<TargetMode, string> = { auto: "", generate: "!", hack: "?"
       >
         <SlidersHorizontal class="size-5" />
       </Button>
-      <Checkbox
-        :model-value="mode !== null"
-        tabindex="-1"
-        aria-hidden="true"
-        class="pointer-events-none"
-      />
+      <AppSelection :checked="mode !== null" />
     </div>
   </div>
 </template>

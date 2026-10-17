@@ -1,5 +1,10 @@
 <script setup lang="ts" generic="T">
-import { defaultRangeExtractor, useVirtualizer, useWindowVirtualizer } from "@tanstack/vue-virtual"
+import {
+  defaultRangeExtractor,
+  measureElement,
+  useVirtualizer,
+  useWindowVirtualizer,
+} from "@tanstack/vue-virtual"
 import { useElementBounding } from "@vueuse/core"
 import { computed, ref, useTemplateRef, watch } from "vue"
 
@@ -17,6 +22,16 @@ const content = useTemplateRef<HTMLElement>("content")
 const { top } = useElementBounding(content)
 const virtual = computed(() => props.items.length > 80)
 const focusedKey = ref<string | null>(null)
+// Register rows immediately, but let ResizeObserver supply their first real size.
+// Reading offsetHeight for each new row forces layout repeatedly during navigation.
+const measureRow: typeof measureElement = (element, entry, instance) => {
+  if (entry) return measureElement(element, entry, instance)
+  const index = instance.indexFromElement(element)
+  return (
+    instance.itemSizeCache.get(instance.options.getItemKey(index)) ??
+    instance.options.estimateSize(index)
+  )
+}
 // Keep a focused row mounted when it scrolls outside the visible range.
 const options = computed(() => {
   const items = props.items
@@ -27,6 +42,7 @@ const options = computed(() => {
     getItemKey: (index: number) => props.itemKey(items[index]!),
     overscan: 6,
     gap: 2,
+    measureElement: measureRow,
     rangeExtractor: (range: Parameters<typeof defaultRangeExtractor>[0]) => {
       const indexes = defaultRangeExtractor(range)
       if (focused >= 0 && !indexes.includes(focused)) indexes.push(focused)

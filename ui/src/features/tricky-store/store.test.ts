@@ -29,6 +29,16 @@ beforeEach(() => setActivePinia(createPinia()))
 afterEach(() => vi.restoreAllMocks())
 
 describe("target saves", () => {
+  it("retains the clean draft when a page reattaches to the same cached status", () => {
+    const store = useTrickyStore()
+    store.load(status)
+    const draft = store.draft
+    store.load(status)
+    expect(store.draft).toBe(draft)
+    store.load(status, true)
+    expect(store.draft).not.toBe(draft)
+  })
+
   it("advances the baseline without losing edits made during the write", async () => {
     let finish!: (result: Saved) => void
     vi.spyOn(trickyStoreApi, "save").mockImplementation(

@@ -2,6 +2,74 @@ import type { Page } from "@playwright/test"
 
 import { expect, test } from "./fixtures"
 
+test("does not repeat a failed automatic update check on navigation", async ({ page, open }) => {
+  await page.addInitScript(() => {
+    const scope = window as unknown as Record<string, unknown>
+    let host: unknown
+    scope.updateChecks = 0
+    scope.moduleReads = 0
+    Object.defineProperty(window, "ksu", {
+      configurable: true,
+      get: () => host,
+      set: (value) => {
+        const next = value as {
+          exec: (shell: string, options: string, callback: string) => void
+          moduleInfo: () => string
+        }
+        const exec = next.exec
+        const moduleInfo = next.moduleInfo
+        next.moduleInfo = () => {
+          scope.moduleReads = Number(scope.moduleReads) + 1
+          return moduleInfo()
+        }
+        next.exec = (shell, options, callback) => {
+          if (!shell.includes("'system' 'update' 'check'")) return exec(shell, options, callback)
+          scope.updateChecks = Number(scope.updateChecks) + 1
+          const reply = scope[callback] as (code: number, stdout: string, stderr: string) => void
+          setTimeout(
+            () =>
+              reply(
+                1,
+                JSON.stringify({
+                  ok: false,
+                  api: 1,
+                  command: "system.update.check",
+                  data: null,
+                  error: { code: "download_failed", message: "offline" },
+                }),
+                "",
+              ),
+            20,
+          )
+        }
+        host = next
+      },
+    })
+  })
+  await open("/")
+  await expect(page.getByRole("button", { name: /Tricky Store/ })).toBeVisible()
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { updateChecks: number }).updateChecks))
+    .toBe(1)
+  for (const name of [/RKP Workbench/, /TEE Attestation Extractor/, /Tricky Store/]) {
+    await page.getByRole("button", { name }).click()
+    await page.getByRole("button", { name: "Back", exact: true }).click()
+    await expect(page.getByRole("button", { name: /Tricky Store/ })).toBeVisible()
+  }
+  await page.getByRole("button", { name: /Module & updates/ }).click()
+  await expect(page.getByRole("button", { name: "Check for updates", exact: true })).toBeEnabled()
+  expect(
+    await page.evaluate(() => (window as unknown as { updateChecks: number }).updateChecks),
+  ).toBe(1)
+  expect(
+    await page.evaluate(() => (window as unknown as { moduleReads: number }).moduleReads),
+  ).toBe(1)
+  await page.getByRole("button", { name: "Check for updates", exact: true }).click()
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { updateChecks: number }).updateChecks))
+    .toBe(2)
+})
+
 async function addPackages(page: Page, system = false) {
   await page.evaluate((system) => {
     const scope = window as unknown as Record<string, unknown>
@@ -96,6 +164,37 @@ test("keeps a large target list bounded and bulk actions cover offscreen apps", 
   expect(await page.locator('main [role="checkbox"]').count()).toBeLessThan(80)
   await page.getByPlaceholder("Search").fill("com.test.app0000")
   await expect(page.getByRole("checkbox", { name: /com.test.app0000/ })).toBeInViewport()
+})
+
+test("measures wrapped virtual rows after returning with enlarged text", async ({ page, open }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await open("/")
+  await expect(page.getByRole("button", { name: /Tricky Store/ })).toBeVisible()
+  await addPackages(page)
+  await page.getByRole("button", { name: /Tricky Store/ }).click()
+  await expect(page.getByText("4 selected")).toBeVisible()
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "32px"
+  })
+  const measured = () =>
+    page.evaluate(() => {
+      const rows = [...document.querySelectorAll<HTMLElement>("main [data-index]")]
+        .sort((a, b) => Number(a.dataset.index) - Number(b.dataset.index))
+        .map((row) => row.getBoundingClientRect())
+      return (
+        rows.length > 2 &&
+        rows.some((row) => row.height > 96) &&
+        rows.every((row, index) => index === 0 || row.top >= rows[index - 1]!.bottom - 1)
+      )
+    })
+  await expect.poll(measured).toBe(true)
+  await page.evaluate(() => {
+    location.hash = "#/tricky-store/keybox"
+  })
+  await expect(page.getByRole("button", { name: "Add provider", exact: true })).toBeAttached()
+  await page.getByRole("button", { name: "Back", exact: true }).click()
+  await expect.poll(measured).toBe(true)
+  expect(await page.locator("main [data-index]").count()).toBeLessThan(80)
 })
 
 test("virtualizes system apps inside the dialog and retains offscreen selections", async ({
