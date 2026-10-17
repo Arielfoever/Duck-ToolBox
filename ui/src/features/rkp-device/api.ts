@@ -9,6 +9,9 @@ const deviceStatusSchema = z
     root: z.boolean(),
     library_present: z.boolean(),
     device_present: z.boolean(),
+    v1_available: z.boolean(),
+    v2_available: z.boolean(),
+    aidl_apk: z.string().nullable(),
     qualcomm_soc: z.boolean(),
     library_path: z.string(),
     device_path: z.string(),
@@ -61,20 +64,25 @@ const artifactPathsSchema = z.object({
 })
 export type ArtifactPaths = z.infer<typeof artifactPathsSchema>
 
-const provisionSchema = z.object({
-  acknowledged_limitations: z.boolean(),
-  limitations: z.array(z.string()),
-  mode: z.string(),
-  fingerprint: z.string(),
-  challenge_hex: z.string(),
-  csr_len: z.number(),
-  local_verify: reportSchema,
-  chain: chainSummarySchema,
-  device_id: z.string(),
-  keybox_xml: z.string(),
-  artifacts: artifactPathsSchema,
-  prerequisites: deviceStatusSchema,
-})
+const provisionSchema = z
+  .object({
+    acknowledged_limitations: z.boolean(),
+    limitations: z.array(z.string()),
+    mode: z.string(),
+    csr_protocol: z.enum(["v1", "v2"]),
+    fingerprint: z.string(),
+    challenge_hex: z.string(),
+    csr_len: z.number(),
+    local_verify: reportSchema.nullable(),
+    chain: chainSummarySchema,
+    device_id: z.string(),
+    keybox_xml: z.string(),
+    artifacts: artifactPathsSchema,
+    prerequisites: deviceStatusSchema,
+  })
+  .refine((data) => (data.csr_protocol === "v1") === (data.local_verify === null), {
+    message: "CSR protocol disagrees with its local verification report",
+  })
 export type Provision = z.infer<typeof provisionSchema>
 
 export const rkpDeviceApi = {
@@ -83,6 +91,8 @@ export const rkpDeviceApi = {
    * Sends the acknowledgement the backend requires. It is the flag a user has to give,
    * not a default, so the button that reaches this call is always an explicit one.
    */
-  provision: () =>
-    duckd(["rkp-device", "provision", "--acknowledge-limitations"], { schema: provisionSchema }),
+  provision: (protocol: "auto" | "v1" | "v2" = "auto") =>
+    duckd(["rkp-device", "provision", "--acknowledge-limitations", "--protocol", protocol], {
+      schema: provisionSchema,
+    }),
 }

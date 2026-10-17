@@ -7,6 +7,14 @@ import { useI18n } from "vue-i18n"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import ConfirmDialog from "@/core/components/ConfirmDialog.vue"
 import KeyValueList from "@/core/components/KeyValueList.vue"
@@ -36,13 +44,21 @@ const status = useQuery({
 })
 const result = ref<Provision | null>(null)
 const confirmOpen = ref(false)
+const protocol = ref<"auto" | "v1" | "v2">("auto")
+const canRun = computed(() => {
+  const data = status.data.value
+  return (
+    data?.prerequisites_met &&
+    (protocol.value === "auto" || (protocol.value === "v1" ? data.v1_available : data.v2_available))
+  )
+})
 
 // Other tools register where a generated keybox can be installed, like the Tricky Store
 // manager does for the offline workbench.
 const keyboxTargets = contributions("keyboxTargets")
 
 const run = useMutation({
-  mutationFn: rkpDeviceApi.provision,
+  mutationFn: () => rkpDeviceApi.provision(protocol.value),
   onSuccess: (data) => {
     result.value = data
     notifySuccess(t("run.done"))
@@ -96,6 +112,8 @@ const statusRows = computed<Row[]>(() => {
     },
     { label: t("status.library"), value: data.library_path, mono: true },
     { label: t("status.device"), value: data.device_path, mono: true },
+    { label: "V1 AIDL", value: data.v1_available ? yes : no },
+    { label: "CSR_V2", value: data.v2_available ? yes : no },
     { label: t("status.fingerprint"), value: data.fingerprint },
     { label: t("status.compatibility"), value: t("status.unverified") },
   ]
@@ -110,12 +128,18 @@ const resultRows = computed<Row[]>(() => {
   if (!data) return []
   return [
     { label: t("run.mode"), value: data.mode, mono: true },
+    { label: t("run.protocol"), value: data.csr_protocol.toUpperCase() },
     { label: t("run.fingerprint"), value: data.fingerprint },
     { label: t("run.challenge"), value: data.challenge_hex, mono: true },
     { label: t("run.csr"), value: data.artifacts.csr_path, mono: true, copy: true },
     {
       label: t("run.localVerify"),
-      value: data.local_verify.signature_valid ? t("run.valid") : t("run.invalid"),
+      value:
+        data.local_verify === null
+          ? t("run.structureOnly")
+          : data.local_verify.signature_valid
+            ? t("run.valid")
+            : t("run.invalid"),
     },
     { label: t("run.certificates"), value: data.chain.certificates },
     { label: t("run.deviceId"), value: data.device_id, mono: true },
@@ -204,11 +228,23 @@ const resultRows = computed<Row[]>(() => {
           </div>
         </SectionCard>
 
+        <div class="flex flex-col gap-2">
+          <Label for="rkp-protocol">{{ t("run.protocol") }}</Label>
+          <Select v-model="protocol" :disabled="run.isPending.value || confirmOpen">
+            <SelectTrigger id="rkp-protocol" class="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">{{ t("run.auto") }}</SelectItem>
+              <SelectItem value="v1" :disabled="!status.data.value.v1_available"
+                >V1 AIDL</SelectItem
+              >
+              <SelectItem value="v2" :disabled="!status.data.value.v2_available">CSR_V2</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <Button
           size="lg"
-          :disabled="
-            run.isPending.value || status.isFetching.value || !status.data.value.prerequisites_met
-          "
+          :disabled="run.isPending.value || status.isFetching.value || !canRun"
           @click="confirmOpen = true"
         >
           <Spinner v-if="run.isPending.value" class="size-6" />

@@ -8,7 +8,7 @@
     "title": "Antes de continuar"
   },
   "limitations": {
-    "partial_device_support": "Só funciona em alguns dispositivos. Firmware KeyMint da Qualcomm, acesso root, /dev/smcinvoke e libkeymasterdeviceutils.so são todos necessários, e mesmo assim a ABI do fabricante pode ser diferente.",
+    "partial_device_support": "Só funciona em alguns dispositivos. V1 requer app_process e o APK AIDL RKP do dispositivo. V2 requer /dev/smcinvoke e libkeymasterdeviceutils.so. V1: PureSoft HBK=0.",
     "rkp_only": "Só é possível emitir certificados RKP. É necessário um dispositivo compatível para obter o CSR assinado. A chave privada exportada é gerada por software; nenhuma chave privada é extraída do TEE."
   },
   "status": {
@@ -44,7 +44,9 @@
     "qualcomm_soc_required": "Foi identificado um fabricante diferente da Qualcomm; esta operação exige Qualcomm KeyMint.",
     "fingerprint_missing": "Falta a impressão digital da build, então o servidor não pode vincular um challenge.",
     "soc_vendor_unknown": "Não foi possível identificar o fabricante do SoC pelas propriedades locais ou pelo kernel.",
-    "soc_vendor_conflict": "As informações locais do SoC são conflitantes. Confira as fontes antes de continuar."
+    "soc_vendor_conflict": "As informações locais do SoC são conflitantes. Confira as fontes antes de continuar.",
+    "v1_unavailable": "V1 requer app_process e o APK AIDL RKP do dispositivo.",
+    "v2_unavailable": "V2 requer /dev/smcinvoke e libkeymasterdeviceutils.so."
   },
   "run": {
     "provision": "Emitir keybox RKP",
@@ -67,11 +69,14 @@
     "installed": "Keybox instalado em {target}",
     "backup": "O arquivo anterior foi salvo em {path}.",
     "onlyRkp": "Certificado RKP",
-    "onlyRkpHint": "Esta cadeia foi assinada pelo Google para a chave no arquivo keybox. Guarde o arquivo da chave privada: sem ele o keybox não serve."
+    "onlyRkpHint": "Esta cadeia foi assinada pelo Google para a chave no arquivo keybox. Guarde o arquivo da chave privada: sem ele o keybox não serve.",
+    "protocol": "Protocolo",
+    "auto": "Automático (V2 → V1)",
+    "structureOnly": "Estrutura verificada; as provas criptografadas são verificadas pelo servidor"
   },
   "confirm": {
     "title": "Enviar uma requisição ao KeyMint TA?",
-    "body": "Isto executa CSR_V2 no app confiável KeyMint da Qualcomm do dispositivo e envia o resultado ao Google. Só funciona em alguns dispositivos e só emite certificados RKP. Os arquivos exportados contêm uma chave privada; mantenha-os seguros. Continuar?"
+    "body": "Isto executa RKP (V1 / V2) no app confiável KeyMint da Qualcomm do dispositivo e envia o resultado ao Google. Só funciona em alguns dispositivos e só emite certificados RKP. Os arquivos exportados contêm uma chave privada; mantenha-os seguros. Continuar?"
   },
   "errors": {
     "acknowledgement_required": "As limitações não foram aceitas.",

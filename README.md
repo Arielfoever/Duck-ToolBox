@@ -38,8 +38,19 @@ changed, removed or added on its own.
   a seed you hold.
   - Asks this device's Qualcomm KeyMint TA for a `CSR_V2` over a P-256 key we generated,
     submits the result to Google's RKP server and exports `keybox.xml` with the private key.
-  - Checks its prerequisites (Android arm64, root, `/dev/smcinvoke`,
-    `libkeymasterdeviceutils.so`, Qualcomm SoC) before it sends anything.
+  - Supports a legacy V1 AIDL path for Qualcomm PureSoft firmware with a zero HBK.
+    The public-key MAC and CSR are constructed in Rust; a small isolated bridge calls
+    the device's own AIDL proxy, using the EEK curve reported by its HAL.
+    This method is adapted from [LazyBonesLZY's rkp-v1-oracle](https://github.com/LazyBonesLZY/rkp-v1-oracle)
+    at revision `b28480c98c1256753aed140c6ff86d0336f55c45` (MIT; see `module/licenses/rkp-v1-oracle.txt`).
+  - Select `auto`, `v1` or `v2` in the WebUI or with `rkp-device provision --protocol`.
+    Automatic mode prefers V2, falling back to V1 only on TA status `-40`; it starts
+    with V1 when V2's local resources are missing. Other failures are preserved.
+  - Checks Android arm64, root and Qualcomm SoC before sending anything. V2 needs
+    `/dev/smcinvoke` and `libkeymasterdeviceutils.so`; V1 needs `app_process` and a
+    system RKP APK containing the matching AIDL classes. Neither check proves firmware support.
+  - V1 encrypts the DICE and signing evidence for the server. Its local report is
+    explicitly structural only (`local_verify: null`); V2 retains local signature checks.
   - Starts its isolated worker with vendor library search paths while retaining the
     default namespace's system dependency links. Library loading and the firmware ABI
     still need to work on the device; prerequisite checks alone cannot confirm them.
@@ -51,6 +62,8 @@ changed, removed or added on its own.
   - On a OnePlus PJX110 running Android 16, loading from `/data/adb` and calling the TA
     were verified. Both this implementation and the reference client received TA status
     `-18` for the software-key `CSR_V2` request; that test did not issue a keybox.
+    The V1 adapter has host protocol/bridge tests and an Android build check; device
+    compatibility and successful Google issuance still require a real-device run.
 - **TEE Attestation Extractor**: offline extraction and verification of existing captures.
   - Extracts complete Keybox XML documents and PEM bundles, including PEM embedded in binary
     captures. Supports EC P-256/P-384 and RSA 2048–8192 private keys.
@@ -223,14 +236,24 @@ and JSON requests are separate modes; put all operation options in the JSON requ
 Requirements:
 - Rust stable with the `aarch64-linux-android` target (`rust-toolchain.toml` installs it).
 - Android NDK r30.
+- JDK 17 or newer and Android SDK Build Tools 36.0.0 for the embedded V1 bridge.
+  Set `ANDROID_HOME` or `ANDROID_SDK_ROOT`; `ANDROID_BUILD_TOOLS_VERSION` can select
+  another installed version. Set `JAVA_HOME` or put `java` and `javac` on `PATH`.
+  Host-only Rust builds do not require the SDK or JDK.
 - Node.js 24 and pnpm 12 (`corepack enable` picks the version from `ui/package.json`).
   Type checking runs the TypeScript 7 engine through typescript-native-bridge, because
   stock TypeScript 7 no longer has the API vue-tsc needs.
+
+The Android build compiles the V1 bridge with `javac`, converts it to `classes.dex`
+with D8, and embeds the resulting DEX JAR in `duckd`. A V1 request writes the JAR
+to a private temporary directory for `app_process` to load, then removes it after
+the bridge exits. Devices do not need a JDK or SDK build tools.
 
 ```bash
 cargo xtask line-limit
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+python3 scripts/test_rkp_v1_bridge.py  # AIDL fixture, framing and error propagation (JDK)
 
 # Device binary, e.g. with the NDK's clang as linker
 cargo build --release --package duckd --target aarch64-linux-android

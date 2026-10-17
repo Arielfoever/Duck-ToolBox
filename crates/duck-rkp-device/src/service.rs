@@ -24,14 +24,16 @@ use serde::Serialize;
 use crate::{
     artifacts::{self, ArtifactPaths, Artifacts, ChainSummary},
     error::DeviceRkpError,
-    protocol::{self, MAX_CERT_CHAIN_LEN},
+    issuance::{self, Exchange, Protocol},
+    protocol::MAX_CERT_CHAIN_LEN,
     status::{self, DeviceStatus, LIMITATIONS},
-    worker,
+    v1, worker,
 };
 
 /// Everything the caller can still adjust without touching KeyMint.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Options {
+    pub protocol: Protocol,
     /// Override the build fingerprint sent to `fetchEekChain`.
     pub fingerprint: Option<String>,
     /// Also write `keybox.xml` here, instead of only inside the timestamped run directory.
@@ -51,11 +53,6 @@ impl KeySource for RandomKeys {
     fn generate(&self) -> Result<EcKeyPair> {
         generate_ec_keypair()
     }
-}
-
-/// The vendor half of the round trip: one `CSR_V2` command in an isolated child process.
-pub(crate) trait Exchange {
-    fn csr(&self, request: &[u8]) -> Result<Vec<u8>>;
 }
 
 /// The capability report the run is gated on. Only tests replace it; the device answer
@@ -87,11 +84,18 @@ pub(crate) trait Server: Sync {
 /// The real vendor path. It runs inside a child process started from this binary.
 pub(crate) struct Device<'a> {
     pub paths: &'a AppPaths,
+    pub sysroot: &'a duck_core::Sysroot,
 }
 
 impl Exchange for Device<'_> {
     fn csr(&self, request: &[u8]) -> Result<Vec<u8>> {
         worker::sign(self.paths, request)
+    }
+    fn csr_v1(&self, request: &v1::Request) -> Result<v1::Response> {
+        let apk = v1::find_aidl_apk(self.sysroot).ok_or_else(|| {
+            DeviceRkpError::UnsupportedDevice("V1 AIDL APK is unavailable".into())
+        })?;
+        v1::sign(self.paths, &apk, request)
     }
 }
 
@@ -138,10 +142,11 @@ pub(crate) struct ProvisionData {
     pub limitations: [&'static str; 2],
     /// How the CSR was produced, so a report can tell a device run from an offline one.
     pub mode: &'static str,
+    pub csr_protocol: Protocol,
     pub fingerprint: String,
     pub challenge_hex: String,
     pub csr_len: usize,
-    pub local_verify: VerifyReport,
+    pub local_verify: Option<VerifyReport>,
     pub chain: ChainSummary,
     pub device_id: String,
     pub keybox_xml: String,
@@ -175,8 +180,9 @@ pub(crate) async fn provision(
             .retain(|blocker| *blocker != "fingerprint_missing");
         prerequisites.prerequisites_met = prerequisites.blockers.is_empty();
     }
-    if !prerequisites.prerequisites_met {
-        return Err(DeviceRkpError::UnsupportedDevice(prerequisites.blockers.join(", ")).into());
+    let blockers = issuance::blockers_for(&prerequisites, options.protocol);
+    if !blockers.is_empty() {
+        return Err(DeviceRkpError::UnsupportedDevice(blockers.join(", ")).into());
     }
 
     let fingerprint = explicit_fingerprint
@@ -185,18 +191,16 @@ pub(crate) async fn provision(
     let key = key_source.generate()?;
     let eek = server.challenge(&fingerprint).await?;
 
-    let request = protocol::build_request(&eek.challenge, &key.cose_public)?;
-    let signed = exchange.csr(&request)?;
-    let csr = protocol::unwrap_csr(&signed)?;
-    let local_verify = protocol::validate_csr(&csr, &eek.challenge, &key.cose_public)?;
+    let signed = issuance::issue(options.protocol, &prerequisites, exchange, &key, &eek)?;
+    let csr = &signed.bytes;
 
-    let chains = server.certificates(&csr, &eek.challenge).await?;
+    let chains = server.certificates(csr, &eek.challenge).await?;
     let chain_der = single_chain(&chains)?;
     let mut artifacts = artifacts::write(
         &ctx.paths,
         artifacts::Inputs {
             secret_key: &key.secret_key,
-            csr: &csr,
+            csr,
             cert_chain_der: &chain_der,
             manufacturer: &prerequisites.soc_manufacturer,
         },
@@ -206,21 +210,13 @@ pub(crate) async fn provision(
         artifacts.paths.keybox_path = path.display().to_string();
     }
 
-    Ok(report(
-        &fingerprint,
-        &eek,
-        &csr,
-        local_verify,
-        artifacts,
-        prerequisites,
-    ))
+    Ok(report(&fingerprint, &eek, signed, artifacts, prerequisites))
 }
 
 fn report(
     fingerprint: &str,
     eek: &EekResponse,
-    csr: &[u8],
-    local_verify: VerifyReport,
+    signed: issuance::SignedCsr,
     artifacts: Artifacts,
     prerequisites: DeviceStatus,
 ) -> ProvisionData {
@@ -228,10 +224,11 @@ fn report(
         acknowledged_limitations: true,
         limitations: LIMITATIONS,
         mode: "device-ta-oracle",
+        csr_protocol: signed.protocol,
         fingerprint: fingerprint.to_owned(),
         challenge_hex: eek.challenge_hex.clone(),
-        csr_len: csr.len(),
-        local_verify,
+        csr_len: signed.bytes.len(),
+        local_verify: signed.local_verify,
         chain: ChainSummary::of(&artifacts.chain),
         device_id: artifacts.device_id.clone(),
         keybox_xml: artifacts.keybox_xml.clone(),
