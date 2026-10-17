@@ -3,8 +3,8 @@ use p384::{SecretKey as P384SecretKey, elliptic_curve::sec1::ToSec1Point};
 
 use super::{ALG_ES384, cose_key::parse_cose_public_key, verify_csr};
 use crate::{
-    cbor::{bytes, decode, encode, int},
-    cose::{DeviceKeys, RPC_CURVE_25519, build_csr, generate_ec_keypair},
+    cbor::{as_bytes, bytes, decode, encode, int, text},
+    cose::{DeviceKeys, RPC_CURVE_25519, build_csr, build_sig_structure, generate_ec_keypair},
     profile::{DeviceInfo, DiceCurve},
 };
 
@@ -46,6 +46,53 @@ fn csr_bytes(keys: &DeviceKeys, device: &DeviceInfo) -> Vec<u8> {
 
 fn valid_csr() -> Vec<u8> {
     csr_bytes(&DeviceKeys::from_seed([0x11; 32]), &valid_device_info())
+}
+
+fn csr_with_dice_fields(fields: &[Vec<(Value, Value)>]) -> Vec<u8> {
+    let keys = DeviceKeys::from_seed([0x11; 32]);
+    let mut csr = decode(&csr_bytes(&keys, &valid_device_info())).unwrap();
+    let chain = array(&mut array(&mut csr)[2]);
+    let template = array(&mut chain[1]).clone();
+    let Value::Map(payload) = decode(as_bytes(&template[2], "DICE payload").unwrap()).unwrap()
+    else {
+        panic!("DICE payload must be a map");
+    };
+    chain.truncate(1);
+
+    for fields in fields {
+        let mut entry = template.clone();
+        let mut payload = payload.clone();
+        payload.extend_from_slice(fields);
+        let payload = encode(&Value::Map(payload)).unwrap();
+        let signature_input = build_sig_structure(
+            "Signature1",
+            as_bytes(&entry[0], "protected header").unwrap(),
+            &payload,
+        )
+        .unwrap();
+        entry[2] = bytes(payload);
+        entry[3] = bytes(keys.sign(&signature_input));
+        chain.push(Value::Array(entry));
+    }
+
+    encode(&csr).unwrap()
+}
+
+fn dice_fields(profile: Option<&str>, mode: Value) -> Vec<(Value, Value)> {
+    let mut fields = vec![(int(-4_670_551), mode)];
+    if let Some(profile) = profile {
+        fields.push((int(-4_670_554), text(profile)));
+    }
+    fields
+}
+
+fn android_16_fields(configuration: Vec<(Value, Value)>) -> Vec<(Value, Value)> {
+    let mut fields = dice_fields(Some("android.16"), bytes(vec![1]));
+    fields.push((
+        int(-4_670_548),
+        bytes(encode(&Value::Map(configuration)).unwrap()),
+    ));
+    fields
 }
 
 fn array(value: &mut Value) -> &mut Vec<Value> {
@@ -180,6 +227,156 @@ fn verify_rejects_tampered_dice_chain_signature() {
 
     let error = verify_csr(&encode(&decoded).unwrap()).unwrap_err();
     assert!(error.to_string().contains("DICE chain entry 1 signature"));
+}
+
+#[test]
+fn verify_accepts_profile_specific_dice_mode_encodings() {
+    for profile in [
+        None,
+        Some("android.14"),
+        Some("android.15"),
+        Some("android.16"),
+    ] {
+        let report = verify_csr(&csr_with_dice_fields(&[dice_fields(
+            profile,
+            bytes(vec![1]),
+        )]))
+        .unwrap();
+        assert!(report.signature_valid, "profile: {profile:?}");
+    }
+    for profile in [None, Some("android.14")] {
+        let report = verify_csr(&csr_with_dice_fields(&[dice_fields(profile, int(1))])).unwrap();
+        assert!(report.signature_valid, "profile: {profile:?}");
+    }
+}
+
+#[test]
+fn verify_rejects_integer_modes_in_newer_dice_profiles() {
+    for profile in ["android.15", "android.16"] {
+        let error =
+            verify_csr(&csr_with_dice_fields(&[dice_fields(Some(profile), int(1))])).unwrap_err();
+        assert!(
+            error.to_string().contains("DICE chain entry 1 mode"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn verify_rejects_invalid_dice_modes_and_profiles() {
+    for mode in [
+        bytes(vec![]),
+        bytes(vec![1, 2]),
+        text("normal"),
+        Value::Null,
+    ] {
+        let error = verify_csr(&csr_with_dice_fields(&[dice_fields(None, mode)])).unwrap_err();
+        assert!(
+            error.to_string().contains("DICE chain entry 1 mode"),
+            "{error}"
+        );
+    }
+    for profile in [text("android.99"), int(14)] {
+        let error =
+            verify_csr(&csr_with_dice_fields(&[vec![(int(-4_670_554), profile)]])).unwrap_err();
+        assert!(error.to_string().contains("profile name"), "{error}");
+    }
+}
+
+#[test]
+fn verify_accepts_dice_entries_without_a_mode_field() {
+    // `dice_fields` always sets `mode`; an entry that omits the field entirely must still
+    // verify, for the strict profile as well as the defaulted one.
+    for entry in [vec![], vec![(int(-4_670_554), text("android.15"))]] {
+        let report = verify_csr(&csr_with_dice_fields(&[entry])).unwrap();
+        assert!(report.signature_valid);
+    }
+}
+
+#[test]
+fn verify_rejects_android_16_configuration_without_unsigned_security_version() {
+    for configuration in [
+        vec![],
+        vec![(int(-70_005), int(-1))],
+        vec![(int(-70_005), text("1"))],
+    ] {
+        let error =
+            verify_csr(&csr_with_dice_fields(&[android_16_fields(configuration)])).unwrap_err();
+        assert!(error.to_string().contains("security version"), "{error}");
+    }
+}
+
+#[test]
+fn verify_accepts_android_16_unsigned_security_version() {
+    for version in [0, 1, i128::from(u64::MAX)] {
+        let fields = android_16_fields(vec![(int(-70_005), int(version))]);
+        assert!(
+            verify_csr(&csr_with_dice_fields(&[fields]))
+                .unwrap()
+                .signature_valid
+        );
+    }
+}
+
+#[test]
+fn verify_rejects_duplicate_android_16_security_versions() {
+    let fields = android_16_fields(vec![(int(-70_005), int(1)), (int(-70_005), int(2))]);
+    let error = verify_csr(&csr_with_dice_fields(&[fields])).unwrap_err();
+    assert!(
+        error.to_string().contains("duplicate key `-70005`"),
+        "{error}"
+    );
+}
+
+#[test]
+fn verify_preserves_older_dice_configuration_compatibility() {
+    for profile in [None, Some("android.14"), Some("android.15")] {
+        let mut fields = dice_fields(profile, bytes(vec![1]));
+        fields.push((int(-4_670_548), bytes(encode(&Value::Map(vec![])).unwrap())));
+        assert!(
+            verify_csr(&csr_with_dice_fields(&[fields]))
+                .unwrap()
+                .signature_valid
+        );
+    }
+}
+
+#[test]
+fn verify_rejects_dice_profile_downgrades() {
+    for (first, second) in [
+        (Some("android.15"), Some("android.14")),
+        (Some("android.15"), None),
+        (Some("android.16"), Some("android.15")),
+        (Some("android.16"), Some("android.14")),
+        (Some("android.16"), None),
+    ] {
+        let first_fields = if first == Some("android.16") {
+            android_16_fields(vec![(int(-70_005), int(1))])
+        } else {
+            dice_fields(first, bytes(vec![1]))
+        };
+        let csr = csr_with_dice_fields(&[first_fields, dice_fields(second, bytes(vec![1]))]);
+        let error = verify_csr(&csr).unwrap_err();
+        assert!(
+            error.to_string().contains("DICE chain entry 2 profile"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn verify_accepts_dice_profile_upgrades_and_equal_versions() {
+    let csr = csr_with_dice_fields(&[
+        dice_fields(None, int(1)),
+        dice_fields(Some("android.14"), int(1)),
+        dice_fields(Some("android.15"), bytes(vec![1])),
+        dice_fields(Some("android.15"), bytes(vec![1])),
+        android_16_fields(vec![(int(-70_005), int(1))]),
+        android_16_fields(vec![(int(-70_005), int(1))]),
+    ]);
+    let report = verify_csr(&csr).unwrap();
+    assert!(report.signature_valid);
+    assert_eq!(report.dice_entries, 7);
 }
 
 #[test]
