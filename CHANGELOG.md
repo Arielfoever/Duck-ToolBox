@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.4-stable - 2026-10-17
 
 ### RKP Workbench
 
@@ -16,6 +16,7 @@
   paths and summaries instead of private XML. Installation remains independent.
 - Bump the workbench feature contract to 2. Old profiles retain their seed derivation;
   material import does not overwrite profiles or an installed keybox.
+- Accepts the integer DICE mode allowed by the `android.14` profile.
 - Verification uses generated synthetic keys and a local simulated server. Real-material
   production acceptance and successful production export remain unverified for this path.
 
@@ -36,6 +37,21 @@
   proxy in an isolated process, with bounded exchange files and timeout cleanup.
 - Reports V1 as structurally checked; encrypted signing evidence is verified by the
   provisioning server. V2 retains local signature verification.
+- Cross-checks Qualcomm aliases (including QTI/QCOM), SoC part numbers, hardware properties
+  and kernel SoC information. Unknown and conflicting evidence have separate blockers;
+  empty properties no longer imply support. The WebUI shows the evidence and keeps firmware
+  and server compatibility unverified.
+- Recognizes QTI as Qualcomm and gives the isolated worker vendor library search paths,
+  retaining the default namespace's system dependency links for libraries such as libcrypto.
+- Preserves worker error types and accepts bare as well as field-61-wrapped CSRs.
+- Bounds exchange-file reads, rejects nonregular files and symlinks, and requires exactly
+  one nonempty certificate chain for the requested key.
+- Reserves private output directories atomically, removes partial runs on write failure,
+  and saves keyboxes and private keys with mode `0600`, including explicit output copies.
+- Uses the prerequisite report's device fingerprint consistently; an explicit fingerprint
+  can satisfy a missing fingerprint without bypassing other prerequisites.
+- Corrects the key export description: the exported keybox includes a software-generated
+  private key; this path does not extract a private key from the TEE.
 
 ### TEE Attestation Extractor
 - New offline tool for extracting Keybox XML and PEM material from existing captures and
@@ -58,27 +74,12 @@
   certificates without treating them as self-signed roots.
 - Ignores root-tag examples in XML comments outside the captured document.
 
+### WebUI
+- Keeps long error details, links and code within the viewport.
+
 ### Command wrapper
 - Preserves backend failure exit codes and tries fallback binaries only after execution
   failures (`126` or `127`).
-
-### Device RKP Issuer
-- Cross-checks Qualcomm aliases (including QTI/QCOM), SoC part numbers, hardware properties
-  and kernel SoC information. Unknown and conflicting evidence have separate blockers;
-  empty properties no longer imply support. The WebUI shows the evidence and keeps firmware
-  and server compatibility unverified. Feature contract 2 prevents mixing older status data
-  with the updated UI.
-- Recognizes QTI as Qualcomm and gives the isolated worker vendor library search paths,
-  retaining the default namespace's system dependency links for libraries such as libcrypto.
-- Preserves worker error types and accepts bare as well as field-61-wrapped CSRs.
-- Bounds exchange-file reads, rejects nonregular files and symlinks, and requires exactly
-  one nonempty certificate chain for the requested key.
-- Reserves private output directories atomically, removes partial runs on write failure,
-  and saves keyboxes and private keys with mode `0600`, including explicit output copies.
-- Uses the prerequisite report's device fingerprint consistently; an explicit fingerprint
-  can satisfy a missing fingerprint without bypassing other prerequisites.
-- Corrects the key export description: the exported keybox includes a software-generated
-  private key; this path does not extract a private key from the TEE.
 
 ## 0.1.3-stable - 2026-10-17
 
