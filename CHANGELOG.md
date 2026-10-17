@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.5-stable - 2026-10-18
+
+### WebUI
+
+- Virtualize target and system-app lists while preserving search, bulk selection,
+  keyboard focus and per-app controls. Batch synchronous package metadata lookups
+  and stop queued lookups when their query is cancelled.
+- Preserve edits made during target saves, update the saved baseline without an
+  extra package-manager query, and guard overlapping writes.
+- Keep RKP navigation available during loading, prevent overlapping profile
+  operations, and discard results for changed inputs.
+- Fix cached Device ID form initialization, language-switch races, cancelled file
+  reads and malformed repository messages. Bound uploads and translation requests.
+- Adapt buttons, tabs, forms, menus, dialogs and sheets to narrow screens, landscape
+  and enlarged text. Wrap technical values and application names, improve supporting
+  text size and contrast, and respect display safe areas.
+
 ## 0.1.4-stable - 2026-10-17
 
 ### RKP Workbench
