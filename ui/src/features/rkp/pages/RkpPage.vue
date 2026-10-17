@@ -36,17 +36,17 @@ const tabs = ["import", "profile", "provision", "keybox", "verify"] as const
 
 <template>
   <div class="flex flex-col gap-4 p-4 pt-0">
-    <QueryState
-      :loading="experimental && loading.isPending.value"
-      :error="experimental ? loading.error.value : null"
-      @retry="loading.refetch()"
-    >
-      <Tabs v-model="tab" class="gap-6">
-        <TabsList class="h-auto w-full flex-wrap">
-          <TabsTrigger v-for="name in tabs" :key="name" :value="name">
-            {{ t(`tabs.${name}`) }}
-          </TabsTrigger>
-        </TabsList>
+    <Tabs v-model="tab" class="gap-6">
+      <TabsList class="h-auto w-full flex-wrap">
+        <TabsTrigger v-for="name in tabs" :key="name" :value="name">
+          {{ t(`tabs.${name}`) }}
+        </TabsTrigger>
+      </TabsList>
+      <QueryState
+        :loading="experimental && loading.isPending.value"
+        :error="experimental ? loading.error.value : null"
+        @retry="loading.refetch()"
+      >
         <Alert v-if="experimental">
           <TriangleAlert />
           <AlertTitle>{{ t("experimental.title") }}</AlertTitle>
@@ -57,7 +57,7 @@ const tabs = ["import", "profile", "provision", "keybox", "verify"] as const
         <TabsContent value="provision"><ProvisionTab /></TabsContent>
         <TabsContent value="keybox"><KeyboxTab /></TabsContent>
         <TabsContent value="verify"><VerifyTab /></TabsContent>
-      </Tabs>
-    </QueryState>
+      </QueryState>
+    </Tabs>
   </div>
 </template>

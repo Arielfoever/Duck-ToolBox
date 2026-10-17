@@ -16,8 +16,8 @@ export function useStatusQuery() {
 export function useLabels(packages: Ref<readonly string[]>) {
   const query = useQuery({
     queryKey: computed(() => ["tricky-store", "labels", packages.value] as const),
-    queryFn: async () => {
-      const info = await bridge().packagesInfo([...packages.value])
+    queryFn: async ({ queryKey, signal }) => {
+      const info = await bridge().packagesInfo([...queryKey[2]], signal)
       return new Map(info.map((entry) => [entry.packageName, entry.label]))
     },
     enabled: computed(() => packages.value.length > 0),

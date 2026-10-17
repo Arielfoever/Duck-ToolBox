@@ -52,20 +52,31 @@ export function createKernelSuBridge(): RootBridge {
       }
     },
 
-    async packagesInfo(packageNames) {
-      if (packageNames.length === 0) return []
-      try {
-        const infos = await getPackagesInfo(packageNames)
-        return (Array.isArray(infos) ? infos : [infos])
-          .filter((info) => typeof info?.packageName === "string" && !("error" in info))
-          .map<InstalledPackage>((info) => ({
-            packageName: info.packageName,
-            label: info.appLabel || info.packageName,
-            system: Boolean(info.isSystem),
-          }))
-      } catch {
-        return []
+    async packagesInfo(packageNames, signal) {
+      const result: InstalledPackage[] = []
+      // The native method is synchronous despite the library's Promise API. Give the
+      // WebView a turn before each bounded batch, including the first, so it can paint.
+      for (let offset = 0; offset < packageNames.length; offset += 24) {
+        signal?.throwIfAborted()
+        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+        signal?.throwIfAborted()
+        try {
+          const infos = await getPackagesInfo(packageNames.slice(offset, offset + 24))
+          result.push(
+            ...(Array.isArray(infos) ? infos : [infos])
+              .filter((info) => typeof info?.packageName === "string" && !("error" in info))
+              .map<InstalledPackage>((info) => ({
+                packageName: info.packageName,
+                label: info.appLabel || info.packageName,
+                system: Boolean(info.isSystem),
+              })),
+          )
+        } catch {
+          // Unsupported hosts keep package names; preserve any batches already loaded.
+          break
+        }
       }
+      return result
     },
 
     iconUrl(packageName) {

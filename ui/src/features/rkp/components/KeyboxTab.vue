@@ -51,7 +51,11 @@ const rows = computed(() =>
 <template>
   <div class="flex flex-col gap-6">
     <p v-if="!keybox" class="text-muted-foreground px-4 text-sm">{{ t("keybox.empty") }}</p>
-    <Button size="lg" :disabled="generate.isPending.value" @click="generate.mutate()">
+    <Button
+      size="lg"
+      :disabled="store.profileBusy || install.isPending.value || !store.draft"
+      @click="generate.mutate()"
+    >
       <Spinner v-if="generate.isPending.value" class="size-6" />
       <FileKey2 v-else />
       {{ t("keybox.generate") }}
@@ -65,7 +69,7 @@ const rows = computed(() =>
             v-for="target in targets"
             :key="target.id"
             variant="secondary"
-            :disabled="install.isPending.value"
+            :disabled="install.isPending.value || store.profileBusy"
             @click="install.mutate(target)"
           >
             <HardDriveDownload />

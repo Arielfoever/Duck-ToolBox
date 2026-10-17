@@ -130,7 +130,7 @@ const resultRows = computed(() => {
             />
             <FieldDescription>{{ t("import.configHint") }}</FieldDescription>
           </Field>
-          <p class="text-muted-foreground text-xs">{{ t("import.fileHint") }}</p>
+          <p class="text-muted-foreground text-sm">{{ t("import.fileHint") }}</p>
         </fieldset>
         <div class="flex flex-wrap gap-3">
           <Button :disabled="!importComplete || importBusy" @click="validate.mutate()">
